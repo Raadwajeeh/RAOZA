@@ -1,0 +1,1 @@
+<h1>Payment confirmed</h1><p>Your RAOZA order {{ $order->order_number }} is confirmed and can move into production.</p>

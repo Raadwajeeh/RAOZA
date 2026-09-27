@@ -1,0 +1,7 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void {
+ Schema::table('users', function(Blueprint $t){$t->string('role',32)->default('customer')->index();});
+ Schema::create('discounts', function(Blueprint $t){$t->id();$t->string('code')->unique();$t->string('name');$t->string('type',16);$t->unsignedBigInteger('value');$t->unsignedBigInteger('minimum_order_amount')->nullable();$t->unsignedInteger('usage_limit')->nullable();$t->unsignedInteger('per_customer_limit')->nullable();$t->timestampTz('starts_at')->nullable();$t->timestampTz('ends_at')->nullable();$t->boolean('active')->default(true)->index();$t->jsonb('rules')->nullable();$t->timestampsTz();});
+ Schema::create('audit_logs', function(Blueprint $t){$t->id();$t->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();$t->string('action',80)->index();$t->string('subject_type',100);$t->string('subject_id',100)->nullable();$t->jsonb('before')->nullable();$t->jsonb('after')->nullable();$t->string('ip_address',45)->nullable();$t->timestampTz('created_at')->useCurrent();$t->index(['subject_type','subject_id']);});
+ } public function down(): void {Schema::dropIfExists('audit_logs');Schema::dropIfExists('discounts');Schema::table('users',fn(Blueprint $t)=>$t->dropColumn('role'));} };

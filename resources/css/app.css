@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@theme {
+  --color-raoza-primary: #330313;
+  --color-raoza-secondary: #602032;
+  --color-raoza-cream: #FFF6E6;
+  --color-raoza-gold: #D1AF6F;
+  --color-raoza-black: #111111;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+:root { color: #111111; background: #FFF6E6; font-family: var(--font-sans); font-synthesis: none; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #FFF6E6; text-rendering: optimizeLegibility; }
+body, button, input, select, textarea { font-family: var(--font-sans); }
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; }
+button { color: inherit; }
+img { display: block; max-width: 100%; }
+::selection { background: #330313; color: #FFF6E6; }
+:focus-visible { outline: 2px solid #602032; outline-offset: 3px; }
+.raoza-container { width: min(100% - 2.5rem, 1500px); margin-inline: auto; }
+.raoza-eyebrow { font-size: .625rem; line-height: 1rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: #602032; }
+.raoza-display { font-family: var(--font-display); color: #330313; letter-spacing: -.035em; }
+.raoza-rule { border-color: color-mix(in srgb, #330313 17%, transparent); }
+.raoza-button { display: inline-flex; min-height: 3.25rem; align-items: center; justify-content: center; padding: .9rem 1.5rem; background: #330313; color: #FFF6E6; font-size: .68rem; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; transition: opacity .2s ease, transform .2s ease; }
+.raoza-button:hover { opacity: .9; }
+.raoza-button:active { transform: translateY(1px); }
+.raoza-button-outline { background: transparent; color: #330313; border: 1px solid #330313; }
+.raoza-surface { background: color-mix(in srgb, #330313 4%, #FFF6E6); }
+@media (min-width: 768px) { .raoza-container { width: min(100% - 5rem, 1500px); } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

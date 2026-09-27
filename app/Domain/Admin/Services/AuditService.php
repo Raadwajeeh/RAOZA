@@ -1,0 +1,2 @@
+<?php
+namespace App\Domain\Admin\Services; use App\Domain\Admin\Models\AuditLog; use Illuminate\Database\Eloquent\Model; use Illuminate\Http\Request; class AuditService {public function record(Request $r,string $action,Model $subject,?array $before=null,?array $after=null):void{AuditLog::create(['actor_id'=>$r->user()?->id,'action'=>$action,'subject_type'=>$subject::class,'subject_id'=>(string)$subject->getKey(),'before'=>$before,'after'=>$after,'ip_address'=>$r->ip(),'created_at'=>now()]);}}

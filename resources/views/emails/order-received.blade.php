@@ -1,0 +1,1 @@
+<h1>RAOZA</h1><p>We received order {{ $order->order_number }}.</p><p>Total: €{{ number_format($order->total_amount / 100, 2) }}</p><p>Payment must be confirmed before production starts.</p>

@@ -1,0 +1,1 @@
+<h1>Your RAOZA order has shipped</h1><p>Order {{ $order->order_number }} is on its way.</p>@if($shipment->tracking_url)<p><a href="{{ $shipment->tracking_url }}">Track shipment</a></p>@endif

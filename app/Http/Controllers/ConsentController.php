@@ -1,0 +1,3 @@
+<?php
+namespace App\Http\Controllers; use App\Domain\Marketing\Models\ConsentRecord; use Illuminate\Http\Request; use Illuminate\Support\Str;
+class ConsentController extends Controller {public function store(Request $r){$d=$r->validate(['analytics'=>'required|boolean','marketing'=>'required|boolean']);$id=(string)Str::uuid();$r->session()->put(['consent.necessary'=>true,'consent.analytics'=>$d['analytics'],'consent.marketing'=>$d['marketing'],'consent.id'=>$id]);ConsentRecord::create(['consent_id'=>$id,'user_id'=>$r->user()?->id,'analytics'=>$d['analytics'],'marketing'=>$d['marketing'],'policy_version'=>config('raoza.consent.policy_version'),'locale'=>app()->getLocale(),'consented_at'=>now()]);return back(303);}}

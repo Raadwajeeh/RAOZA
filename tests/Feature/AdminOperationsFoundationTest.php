@@ -1,0 +1,3 @@
+<?php
+namespace Tests\Feature; use App\Domain\Admin\Enums\AdminRole; use App\Models\User; use Illuminate\Foundation\Testing\RefreshDatabase; use Tests\TestCase;
+class AdminOperationsFoundationTest extends TestCase {use RefreshDatabase; public function test_customer_cannot_open_admin():void{$u=User::factory()->create(['role'=>AdminRole::Customer,'is_admin'=>false]);$this->actingAs($u)->get('/admin')->assertForbidden();} public function test_owner_can_open_admin():void{$u=User::factory()->create(['role'=>AdminRole::Owner,'is_admin'=>false]);$this->actingAs($u)->get('/admin')->assertOk();} public function test_legacy_admin_remains_compatible():void{$u=User::factory()->create(['role'=>AdminRole::Customer,'is_admin'=>true]);$this->assertTrue($u->canDo('inventory.adjust'));}}

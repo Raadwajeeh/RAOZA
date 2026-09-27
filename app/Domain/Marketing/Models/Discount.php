@@ -1,0 +1,2 @@
+<?php
+namespace App\Domain\Marketing\Models; use Illuminate\Database\Eloquent\Model; class Discount extends Model {protected $fillable=['code','name','type','value','minimum_order_amount','usage_limit','per_customer_limit','starts_at','ends_at','active','rules']; protected function casts():array{return ['value'=>'integer','minimum_order_amount'=>'integer','usage_limit'=>'integer','per_customer_limit'=>'integer','starts_at'=>'datetime','ends_at'=>'datetime','active'=>'boolean','rules'=>'array'];}}

@@ -1,0 +1,3 @@
+<?php
+namespace App\Domain\Content\Models; use App\Domain\Content\Enums\ContentStatus; use Illuminate\Database\Eloquent\Model;
+class ContentPage extends Model {protected $fillable=['key','title','slug','status','content','seo_title','seo_description','canonical_url','og_image','indexable','published_at']; protected function casts():array{return ['status'=>ContentStatus::class,'content'=>'array','indexable'=>'boolean','published_at'=>'immutable_datetime'];} public function isPublished():bool{return $this->status===ContentStatus::Published&&(!$this->published_at||$this->published_at->isPast());}}

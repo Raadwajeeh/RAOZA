@@ -1,0 +1,2 @@
+<?php
+namespace App\Http\Middleware; use Closure; use Illuminate\Http\Request; use Symfony\Component\HttpFoundation\Response; class RequirePermission {public function handle(Request $r,Closure $next,string $permission):Response{abort_unless($r->user()?->canDo($permission),403);return $next($r);}}
