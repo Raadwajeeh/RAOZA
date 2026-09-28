@@ -15,12 +15,14 @@ class CartService
     public function add(Cart $cart, int $variantId, int $quantity): CartItem
     {
         return DB::transaction(function () use ($cart, $variantId, $quantity) {
+            $lockedCart = Cart::query()->whereKey($cart->id)->lockForUpdate()->firstOrFail();
+            if ($lockedCart->status !== CartStatus::Active) throw ValidationException::withMessages(['cart'=>'This bag can no longer be changed.']);
             $variant = $this->sellableVariant($variantId, true);
-            $item = CartItem::query()->where('cart_id',$cart->id)->where('variant_id',$variant->id)->lockForUpdate()->first();
+            $item = CartItem::query()->where('cart_id',$lockedCart->id)->where('variant_id',$variant->id)->lockForUpdate()->first();
             $requested = ($item?->quantity ?? 0) + $quantity;
             $this->assertQuantity($variant, $requested);
             if ($item) { $item->update(['quantity'=>$requested]); return $item->refresh(); }
-            return $cart->items()->create(['variant_id'=>$variant->id,'quantity'=>$quantity]);
+            return $lockedCart->items()->create(['variant_id'=>$variant->id,'quantity'=>$quantity]);
         });
     }
 
@@ -28,6 +30,8 @@ class CartService
     {
         abort_unless($item->cart_id === $cart->id, 404);
         return DB::transaction(function () use ($item, $quantity) {
+            $cart = Cart::query()->whereKey($item->cart_id)->lockForUpdate()->firstOrFail();
+            if ($cart->status !== CartStatus::Active) throw ValidationException::withMessages(['cart'=>'This bag can no longer be changed.']);
             $locked = CartItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $variant = $this->sellableVariant($locked->variant_id, true);
             $this->assertQuantity($variant, $quantity);
@@ -39,7 +43,11 @@ class CartService
     public function remove(Cart $cart, CartItem $item): void
     {
         abort_unless($item->cart_id === $cart->id, 404);
-        $item->delete();
+        DB::transaction(function () use ($cart, $item): void {
+            $lockedCart = Cart::query()->whereKey($cart->id)->lockForUpdate()->firstOrFail();
+            if ($lockedCart->status !== CartStatus::Active) throw ValidationException::withMessages(['cart'=>'This bag can no longer be changed.']);
+            CartItem::query()->whereKey($item->id)->where('cart_id',$lockedCart->id)->lockForUpdate()->firstOrFail()->delete();
+        });
     }
 
     public function summary(Cart $cart): array

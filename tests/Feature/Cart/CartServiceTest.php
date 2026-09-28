@@ -29,4 +29,17 @@ class CartServiceTest extends TestCase
         $this->expectException(ValidationException::class);
         $service->add($cart,$variant->id,1);
     }
+
+    public function test_converted_cart_cannot_be_mutated(): void
+    {
+        $product=Product::create(['name'=>'Locked Tee','slug'=>'locked-tee','status'=>ProductStatus::Active,'base_price'=>2000,'published_at'=>now()]);
+        $variant=ProductVariant::create(['product_id'=>$product->id,'sku'=>'RZ-LOCKED','status'=>VariantStatus::Active]);
+        Inventory::create(['variant_id'=>$variant->id,'quantity_on_hand'=>3,'quantity_reserved'=>0]);
+        $cart=Cart::create(['token'=>(string)Str::uuid(),'status'=>CartStatus::Active,'currency'=>'EUR']);
+        $item=app(CartService::class)->add($cart,$variant->id,1);
+        $cart->update(['status'=>CartStatus::Converted]);
+
+        $this->expectException(ValidationException::class);
+        app(CartService::class)->update($cart->fresh(),$item,2);
+    }
 }
