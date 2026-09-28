@@ -27,12 +27,12 @@ class RefundIntegrityTest extends TestCase
         $provider->status = 'paid';
         app(PaymentService::class)->sync($payment, 'webhook');
 
-        return [$fixture, $payment];
+        return [$fixture, $payment, $provider];
     }
 
     public function test_pending_and_succeeded_refunds_cannot_cumulatively_exceed_payment(): void
     {
-        [$fixture] = $this->paidFixture();
+        [$fixture,,$provider] = $this->paidFixture();
         $service = app(RefundService::class);
         $first = $service->request($fixture['order']->fresh(), 600, idempotencyKey: 'refund-one');
 
@@ -43,9 +43,12 @@ class RefundIntegrityTest extends TestCase
             $this->assertStringContainsString('remaining refundable amount', $exception->getMessage());
         }
 
-        $service->markSucceeded($first, 're_first');
+        $provider->refundStatus = 'refunded';
+        $provider->refundId = 're_first';
+        $service->submit($first);
         $second = $service->request($fixture['order']->fresh(), 400, idempotencyKey: 'refund-two');
-        $service->markSucceeded($second, 're_second');
+        $provider->refundId = 're_second';
+        $service->submit($second);
 
         $sameCompletedRequest = $service->request($fixture['order']->fresh(), 400, idempotencyKey: 'refund-two');
 
@@ -58,18 +61,19 @@ class RefundIntegrityTest extends TestCase
 
     public function test_refund_idempotency_and_failed_transition_are_safe(): void
     {
-        [$fixture] = $this->paidFixture();
+        [$fixture,,$provider] = $this->paidFixture();
         $service = app(RefundService::class);
         $first = $service->request($fixture['order']->fresh(), 500, idempotencyKey: 'stable-key');
         $again = $service->request($fixture['order']->fresh(), 500, idempotencyKey: 'stable-key');
 
         $this->assertSame($first->id, $again->id);
-        $failed = $service->markFailed($first);
-        $failedAgain = $service->markFailed($failed);
+        $provider->refundStatus = 'failed';
+        $failed = $service->submit($first);
+        $failedAgain = $service->submit($failed);
         $this->assertSame($failed->id, $failedAgain->id);
         $this->assertSame(RefundStatus::Failed, $failedAgain->status);
 
-        $this->expectException(RuntimeException::class);
-        $service->markSucceeded($failedAgain, 're_impossible');
+        $this->assertSame(PaymentStatus::Paid, $fixture['order']->fresh()->payment_status);
+        $this->assertSame(1000, $service->refundableAmount($fixture['order']->fresh()));
     }
 }

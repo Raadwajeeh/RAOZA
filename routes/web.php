@@ -111,4 +111,5 @@ Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(func
     Route::patch('/returns/{return:return_number}', [AdminReturnsController::class, 'transition'])->middleware('permission:returns.manage')->name('returns.transition');
     Route::patch('/return-items/{returnItem}/inspection', [AdminReturnsController::class, 'inspect'])->middleware('permission:returns.manage')->name('returns.inspect');
     Route::post('/orders/{order:order_number}/refunds', [AdminReturnsController::class, 'refund'])->middleware(['permission:refunds.manage','throttle:10,1'])->name('refunds.store');
+    Route::post('/refunds/{refund}/sync', [AdminReturnsController::class, 'syncRefund'])->middleware(['permission:refunds.manage','throttle:20,1'])->name('refunds.sync');
 });

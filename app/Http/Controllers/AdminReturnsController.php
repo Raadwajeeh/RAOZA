@@ -19,7 +19,7 @@ class AdminReturnsController extends Controller {
   $returns=ReturnRequest::with(['order:id,order_number,customer_email,currency,total_amount','items.orderItem','refunds'])->latest('requested_at')->get()->map(fn($r)=>[
    'return_number'=>$r->return_number,'order_number'=>$r->order->order_number,'email'=>$r->order->customer_email,'currency'=>$r->order->currency,'order_total'=>$r->order->total_amount,'status'=>$r->status->value,'requested_at'=>$r->requested_at?->toIso8601String(),'admin_note'=>$r->admin_note,
    'items'=>$r->items->map(fn($i)=>['id'=>$i->id,'name'=>$i->orderItem->product_name,'sku'=>$i->orderItem->sku,'quantity'=>$i->quantity,'condition'=>$i->condition?->value,'resolution'=>$i->resolution->value,'restocked'=>(bool)$i->restocked_at]),
-   'refunds'=>$r->refunds->map(fn($x)=>['id'=>$x->id,'amount'=>$x->amount,'status'=>$x->status->value,'reason'=>$x->reason,'requested_at'=>$x->requested_at?->toIso8601String()]),
+   'refunds'=>$r->refunds->map(fn($x)=>['id'=>$x->id,'amount'=>$x->amount,'status'=>$x->status->value,'provider_status'=>$x->provider_status,'provider_refund_id'=>$x->provider_refund_id,'reason'=>$x->reason,'requested_at'=>$x->requested_at?->toIso8601String(),'last_synced_at'=>$x->last_synced_at?->toIso8601String()]),
   ]);
   return Inertia::render('Admin/Returns/Index',['returns'=>$returns]);
  }
@@ -39,9 +39,13 @@ class AdminReturnsController extends Controller {
   return back()->with('success','Return item inspected.');
  }
  public function refund(Request $r,Order $order,RefundService $service):RedirectResponse {
-  $d=$r->validate(['amount'=>['required','integer','min:1'],'return_id'=>['nullable','integer','exists:returns,id'],'return_number'=>['nullable','string'],'reason'=>['nullable','string','max:500'],'idempotency_key'=>['nullable','string','max:128']]);
+  $d=$r->validate(['amount'=>['required','integer','min:1'],'return_id'=>['nullable','integer','exists:returns,id'],'return_number'=>['nullable','string'],'reason'=>['nullable','string','max:500'],'idempotency_key'=>['required','string','max:128']]);
   $return=null;if(isset($d['return_id']))$return=ReturnRequest::where('order_id',$order->id)->findOrFail($d['return_id']);elseif(!empty($d['return_number']))$return=ReturnRequest::where('order_id',$order->id)->where('return_number',$d['return_number'])->firstOrFail();
-  try{$service->request($order,(int)$d['amount'],$return,$d['reason']??null,$d['idempotency_key']??null);}catch(RuntimeException $e){return back()->withErrors(['refund'=>$e->getMessage()]);}
-  return back()->with('success','Refund request created. Provider processing is still required.');
+  try{$refund=$service->request($order,(int)$d['amount'],$return,$d['reason']??null,$d['idempotency_key']);$refund=$service->submit($refund);}catch(RuntimeException $e){return back()->withErrors(['refund'=>$e->getMessage()]);}
+  return back()->with('success',$refund->status===\App\Domain\Returns\Enums\RefundStatus::Succeeded?'Refund confirmed by the payment provider.':'Refund submitted to the payment provider.');
+ }
+ public function syncRefund(\App\Domain\Returns\Models\Refund $refund,RefundService $service):RedirectResponse {
+  try{$updated=$refund->provider_refund_id?$service->sync($refund):$service->submit($refund);}catch(RuntimeException $e){return back()->withErrors(['refund'=>$e->getMessage()]);}
+  return back()->with('success',$updated->status===\App\Domain\Returns\Enums\RefundStatus::Succeeded?'Refund confirmed by the payment provider.':'Refund status synchronized.');
  }
 }

@@ -151,8 +151,10 @@ class PaymentLifecycleIntegrityTest extends TestCase
         try {
             $service->createAttempt($fixture['order']->fresh(), 'https://store.test/return', 'https://store.test/webhook');
         } finally {
+            $this->provider->refundStatus = 'refunded';
+            $this->provider->refundId = 're_test';
             $refund = app(RefundService::class)->request($fixture['order']->fresh(), 1000, idempotencyKey: 'full-refund');
-            app(RefundService::class)->markSucceeded($refund, 're_test');
+            app(RefundService::class)->submit($refund);
             PaymentEvent::query()->delete(); // Simulates an event written by the pre-hardening key format.
 
             $result = $service->sync($payment->fresh(), 'customer_return');
