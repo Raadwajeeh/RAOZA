@@ -24,14 +24,15 @@ Requirements: PHP 8.3+, Composer, Node/npm, PostgreSQL 15+.
 3. Run `composer install`.
 4. Run `npm install`.
 5. Run `php artisan key:generate`.
-6. Run `php artisan migrate:fresh --seed`.
-7. Run `php artisan storage:link`.
-8. Terminal A: `php artisan serve`.
-9. Terminal B: `php artisan queue:work`.
-10. Terminal C: `npm run dev`.
-11. Open `http://127.0.0.1:8000`.
+6. Run existing forward migrations with `php artisan migrate --force` when needed.
+7. Seed or repair the additive local QA dataset with `php artisan db:seed --class=LocalQaSeeder`.
+8. Run `php artisan storage:link`.
+9. Terminal A: `php artisan serve`.
+10. Terminal B: `php artisan queue:work`.
+11. Terminal C: `npm run dev`.
+12. Open `http://127.0.0.1:8000`.
 
-For a clean reset at any time: `php artisan migrate:fresh --seed`.
+The local QA seeder is idempotent and can be run again without deleting orders, carts, customers, or catalog records. It does not reset existing inventory reservations.
 
 ## Review path
 

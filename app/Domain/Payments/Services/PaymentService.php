@@ -49,15 +49,31 @@ class PaymentService {
  }
  private function commitPaidOrder(Order $order):void {
   $order->loadMissing('items'); foreach($order->items->sortBy('variant_id') as $item){ if(!$item->variant_id)throw new RuntimeException('Cannot commit stock for an order item without its variant.'); $inv=Inventory::where('variant_id',$item->variant_id)->lockForUpdate()->firstOrFail(); if($inv->quantity_reserved<$item->quantity||$inv->quantity_on_hand<$item->quantity)throw new RuntimeException('Reserved inventory is inconsistent.'); $inv->quantity_reserved-=$item->quantity; $inv->quantity_on_hand-=$item->quantity; $inv->assertConsistent(); $inv->save(); InventoryMovement::create(['variant_id'=>$item->variant_id,'type'=>InventoryMovementType::Order,'quantity'=>-$item->quantity,'reference_type'=>'order','reference_id'=>(string)$order->id,'note'=>'Paid order '.$order->order_number,'created_at'=>now()]); }
-  $from=$order->order_status->value; $previousFulfillment=$order->fulfillment_status->value; $order->update(['payment_status'=>PaymentStatus::Paid,'order_status'=>OrderStatus::Confirmed,'fulfillment_status'=>FulfillmentStatus::Processing,'paid_at'=>$order->paid_at?:now()]); $order->statusHistory()->create(['domain'=>'payment','from_status'=>$from,'to_status'=>OrderStatus::Confirmed->value,'reason'=>'payment_verified','created_at'=>now()]); $order->statusHistory()->create(['domain'=>'fulfillment','from_status'=>$previousFulfillment,'to_status'=>FulfillmentStatus::Processing->value,'reason'=>'payment_verified','created_at'=>now()]);
+  $from=$order->order_status->value; $previousFulfillment=$order->fulfillment_status->value; $order->update(['payment_status'=>PaymentStatus::Paid,'order_status'=>OrderStatus::Confirmed,'fulfillment_status'=>FulfillmentStatus::Processing,'paid_at'=>$order->paid_at?:now()]); $order->statusHistory()->create(['domain'=>'order','from_status'=>$from,'to_status'=>OrderStatus::Confirmed->value,'reason'=>'payment_verified','created_at'=>now()]); $order->statusHistory()->create(['domain'=>'fulfillment','from_status'=>$previousFulfillment,'to_status'=>FulfillmentStatus::Processing->value,'reason'=>'payment_verified','created_at'=>now()]);
  }
  private function releaseOrder(Order $order,string $reason):void {
   if($order->order_status===OrderStatus::Cancelled)return; $order->loadMissing('items'); foreach($order->items->sortBy('variant_id') as $item){if(!$item->variant_id)continue;$inv=Inventory::where('variant_id',$item->variant_id)->lockForUpdate()->first();if(!$inv)continue;$release=min($item->quantity,$inv->quantity_reserved);if($release>0){$inv->quantity_reserved-=$release;$inv->assertConsistent();$inv->save();}}
-  $from=$order->order_status->value; $order->update(['payment_status'=>PaymentStatus::Failed,'order_status'=>OrderStatus::Cancelled,'cancelled_at'=>now()]); $order->statusHistory()->create(['domain'=>'payment','from_status'=>$from,'to_status'=>OrderStatus::Cancelled->value,'reason'=>'payment_'.$reason,'created_at'=>now()]);
+  $from=$order->order_status->value; $order->update(['payment_status'=>PaymentStatus::Failed,'order_status'=>OrderStatus::Cancelled,'cancelled_at'=>now()]); $order->statusHistory()->create(['domain'=>'order','from_status'=>$from,'to_status'=>OrderStatus::Cancelled->value,'reason'=>'payment_'.$reason,'created_at'=>now()]);
  }
 
  private function ensureReservation(Order $order):void {
-  DB::transaction(function()use($order){ $locked=Order::whereKey($order->id)->lockForUpdate()->firstOrFail(); if($locked->payment_status===PaymentStatus::Paid)return; $locked->loadMissing('items'); foreach($locked->items->sortBy('variant_id') as $item){ if(!$item->variant_id)throw new RuntimeException('Order item no longer has a variant.'); $inv=Inventory::where('variant_id',$item->variant_id)->lockForUpdate()->firstOrFail(); $already=min($item->quantity,$inv->quantity_reserved); $need=$item->quantity-$already; if($need>0){ if($inv->availableQuantity()<$need)throw new RuntimeException('Stock is no longer available for this payment retry.'); $inv->quantity_reserved+=$need; $inv->assertConsistent(); $inv->save(); } } $locked->update(['order_status'=>OrderStatus::PendingPayment,'payment_status'=>PaymentStatus::Pending,'cancelled_at'=>null]); },3);
+  DB::transaction(function()use($order){
+   $locked=Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+   if($locked->payment_status===PaymentStatus::Paid)return;
+   $needsReservation=$locked->order_status===OrderStatus::Cancelled;
+   $locked->loadMissing('items');
+   if($needsReservation){
+    foreach($locked->items->sortBy('variant_id') as $item){
+     if(!$item->variant_id)throw new RuntimeException('Order item no longer has a variant.');
+     $inv=Inventory::where('variant_id',$item->variant_id)->lockForUpdate()->firstOrFail();
+     if($inv->availableQuantity()<$item->quantity)throw new RuntimeException('Stock is no longer available for this payment retry.');
+     $inv->quantity_reserved+=$item->quantity;
+     $inv->assertConsistent();
+     $inv->save();
+    }
+   }
+   $locked->update(['order_status'=>OrderStatus::PendingPayment,'payment_status'=>PaymentStatus::Pending,'cancelled_at'=>null]);
+  },3);
  }
  private function assertMatches(Order $order,ProviderPayment $remote):void { if($remote->amount!==$order->total_amount||strtoupper($remote->currency)!==strtoupper($order->currency)||($remote->orderNumber!==null&&$remote->orderNumber!==$order->order_number)) throw new RuntimeException('Provider payment does not match the order.'); }
  private function mapStatus(string $status):PaymentAttemptStatus{return match(strtolower($status)){'paid'=>PaymentAttemptStatus::Paid,'failed'=>PaymentAttemptStatus::Failed,'expired'=>PaymentAttemptStatus::Expired,'canceled','cancelled'=>PaymentAttemptStatus::Cancelled,'pending'=>PaymentAttemptStatus::Pending,default=>PaymentAttemptStatus::Open};}

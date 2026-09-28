@@ -32,21 +32,21 @@ class StorefrontController extends Controller
             $query->where(fn (Builder $q) => $q->where('name','ilike','%'.$search.'%')->orWhere('description','ilike','%'.$search.'%'));
         }
         $products = $query->paginate(24)->withQueryString()->through(fn (Product $product) => $this->productCard($product));
-        return Inertia::render('Storefront/Shop', ['products'=>$products, 'query'=>['q'=>$search ?? ''], 'title'=>'Shop', 'intro'=>'A curated selection of RAOZA printed apparel.', 'seo'=>$this->seo->basic('Shop — RAOZA','Shop RAOZA printed apparel.',route('shop'))]);
+        return Inertia::render('Storefront/Shop', ['products'=>$products, 'query'=>['q'=>$search ?? ''], 'title'=>'Shop', 'pageType'=>'shop', 'intro'=>'A curated selection of RAOZA printed apparel.', 'seo'=>$this->seo->basic('Shop — RAOZA','Shop RAOZA printed apparel.',route('shop'))]);
     }
 
     public function category(Category $category): Response
     {
         abort_unless($category->status === CategoryStatus::Active, 404);
         $products = $this->publishedProducts()->whereHas('categories', fn (Builder $q) => $q->whereKey($category->id))->paginate(24)->through(fn (Product $product) => $this->productCard($product));
-        return Inertia::render('Storefront/Shop', ['products'=>$products, 'query'=>['q'=>''], 'title'=>$category->name, 'intro'=>'Explore RAOZA '.$category->name.'.']);
+        return Inertia::render('Storefront/Shop', ['products'=>$products, 'query'=>['q'=>''], 'title'=>$category->name, 'pageType'=>'category', 'intro'=>$category->description ?: 'Explore RAOZA '.$category->name.'.', 'seo'=>$this->seo->basic($category->seo_title ?: $category->name.' — RAOZA',$category->seo_description ?: 'Explore RAOZA '.$category->name.'.',$category->canonical_url ?: route('categories.show',$category),$category->indexable)]);
     }
 
     public function collection(Collection $collection): Response
     {
         abort_unless($collection->status === CollectionStatus::Active && (!$collection->published_at || $collection->published_at->isPast()), 404);
         $products = $this->publishedProducts()->whereHas('collections', fn (Builder $q) => $q->whereKey($collection->id))->paginate(24)->through(fn (Product $product) => $this->productCard($product));
-        return Inertia::render('Storefront/Shop', ['products'=>$products, 'query'=>['q'=>''], 'title'=>$collection->name, 'intro'=>$collection->description, 'seo'=>$this->seo->collection($collection)]);
+        return Inertia::render('Storefront/Shop', ['products'=>$products, 'query'=>['q'=>''], 'title'=>$collection->name, 'pageType'=>'collection', 'intro'=>$collection->description, 'seo'=>$this->seo->collection($collection)]);
     }
 
     public function product(Product $product): Response

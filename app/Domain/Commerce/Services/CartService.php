@@ -44,7 +44,7 @@ class CartService
 
     public function summary(Cart $cart): array
     {
-        $cart->load(['items.variant.product.images','items.variant.optionValues.option','items.variant.inventory']);
+        $cart->load(['items.variant.product.images','items.variant.images','items.variant.optionValues.option','items.variant.inventory']);
         $items = $cart->items->map(function (CartItem $item) {
             $variant = $item->variant;
             $product = $variant->product;

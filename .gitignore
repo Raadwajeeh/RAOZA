@@ -16,6 +16,8 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+/.playwright-cli
+/output/playwright
 
 /storage/framework/views/*
 !/storage/framework/views/.gitignore
