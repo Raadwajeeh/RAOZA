@@ -16,6 +16,7 @@ use App\Domain\Payments\Enums\PaymentAttemptStatus;
 use App\Domain\Payments\Models\Payment;
 use App\Domain\Payments\Models\PaymentEvent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class PaymentService
@@ -85,6 +86,16 @@ class PaymentService
             return $payment->refresh();
         } catch (\Throwable $exception) {
             $payment->update(['status' => PaymentAttemptStatus::Failed, 'failed_at' => now()]);
+
+            Log::warning('Payment provider creation failed', [
+                'operation' => 'payment_create',
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_id' => $payment->id,
+                'provider' => $payment->provider,
+                'provider_payment_id' => $payment->provider_payment_id,
+                'exception_type' => $exception::class,
+            ]);
 
             throw $exception;
         }

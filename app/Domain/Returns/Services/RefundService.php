@@ -14,8 +14,10 @@ use App\Domain\Returns\Enums\RefundStatus;
 use App\Domain\Returns\Enums\ReturnStatus;
 use App\Domain\Returns\Models\Refund;
 use App\Domain\Returns\Models\ReturnRequest;
+use App\Mail\RefundSucceededMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -160,6 +162,7 @@ class RefundService
             return $this->applyProviderState($current, $remote);
         } catch (Throwable $exception) {
             Log::warning('Refund provider synchronization failed', [
+                'operation' => 'refund_sync',
                 'refund_id' => $current->id,
                 'order_id' => $current->order_id,
                 'payment_id' => $current->payment_id,
@@ -201,6 +204,7 @@ class RefundService
             }
 
             $mapped = $this->mapProviderStatus($remote->status);
+            $becameSucceeded = $locked->status !== RefundStatus::Succeeded && $mapped === RefundStatus::Succeeded;
             if ($locked->status === RefundStatus::Succeeded && $mapped !== RefundStatus::Succeeded) {
                 return $locked;
             }
@@ -225,6 +229,10 @@ class RefundService
             ]);
 
             $this->recalculateOrderPaymentStatus($order, $payment);
+
+            if ($becameSucceeded) {
+                Mail::to($order->customer_email)->queue(new RefundSucceededMail($order, $locked->refresh()));
+            }
 
             return $locked->refresh();
         }, 3);
@@ -309,6 +317,7 @@ class RefundService
         }, 3);
 
         Log::warning('Refund provider operation failed', [
+            'operation' => 'refund_submit',
             'refund_id' => $refund->id,
             'order_id' => $refund->order_id,
             'payment_id' => $refund->payment_id,

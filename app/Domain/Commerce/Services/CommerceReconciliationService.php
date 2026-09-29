@@ -55,7 +55,11 @@ class CommerceReconciliationService
                 }
             } catch (Throwable $exception) {
                 $summary['failures']++;
-                Log::warning('Payment reconciliation failed', ['payment_id' => $paymentId, 'exception_type' => $exception::class]);
+                Log::warning('Payment reconciliation failed', [
+                    'operation' => 'payment_reconciliation',
+                    'payment_id' => $paymentId,
+                    'exception_type' => $exception::class,
+                ]);
             }
         }
 
@@ -80,7 +84,11 @@ class CommerceReconciliationService
                 }
             } catch (Throwable $exception) {
                 $summary['failures']++;
-                Log::warning('Refund reconciliation failed', ['refund_id' => $refundId, 'exception_type' => $exception::class]);
+                Log::warning('Refund reconciliation failed', [
+                    'operation' => 'refund_reconciliation',
+                    'refund_id' => $refundId,
+                    'exception_type' => $exception::class,
+                ]);
             }
         }
 

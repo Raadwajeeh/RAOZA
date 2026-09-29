@@ -7,7 +7,7 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/raoza/current
-ExecStart=/usr/bin/php artisan queue:work database --sleep=3 --tries=3 --timeout=90 --max-time=3600
+ExecStart=/usr/bin/php artisan queue:work database --sleep=3 --tries=3 --backoff=30 --timeout=60 --max-time=3600
 Restart=always
 RestartSec=5
 KillSignal=SIGTERM

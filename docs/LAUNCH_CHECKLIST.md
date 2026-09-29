@@ -16,6 +16,7 @@
 - [ ] Production migrations reviewed and applied successfully
 - [ ] `/health/live` and `/health/ready` return healthy responses
 - [ ] Queue worker supervised and failed-job monitoring enabled
+- [ ] One scheduler cron invokes `php artisan schedule:run` every minute
 
 ## Commerce
 - [ ] Real RAOZA products, variants, prices, SKUs and stock verified
@@ -36,6 +37,7 @@
 - [ ] Admin OWNER account created securely
 - [ ] Default/test staff accounts absent
 - [ ] Backup job scheduled and off-host copy verified
+- [ ] Persistent `storage/app/public` media backup scheduled and verified
 - [ ] Restore drill completed in an isolated environment
 - [ ] Error/uptime/queue/backup alerts reach an operator
 - [ ] Rollback procedure tested

@@ -13,7 +13,9 @@ use App\Domain\Returns\Enums\RefundStatus;
 use App\Domain\Returns\Enums\ReturnStatus;
 use App\Domain\Returns\Models\ReturnRequest;
 use App\Domain\Returns\Services\RefundService;
+use App\Mail\RefundSucceededMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Tests\Support\BuildsCommerceFixtures;
 use Tests\Support\FakePaymentProvider;
@@ -35,6 +37,7 @@ class RefundProviderLifecycleTest extends TestCase
 
     public function test_provider_id_and_pending_state_are_persisted_then_synchronized_idempotently(): void
     {
+        Mail::fake();
         [$fixture] = $this->paidFixture();
         $service = app(RefundService::class);
         $refund = $service->request($fixture['order']->fresh(), 400, idempotencyKey: 'partial-refund');
@@ -58,6 +61,7 @@ class RefundProviderLifecycleTest extends TestCase
         $this->assertSame($stockAfterPayment, $fixture['inventories'][0]->fresh()->quantity_on_hand);
         $this->assertSame(0, $fixture['inventories'][0]->fresh()->quantity_reserved);
         $this->assertDatabaseCount('inventory_movements', 1);
+        Mail::assertQueued(RefundSucceededMail::class, 1);
     }
 
     public function test_remote_refund_is_recovered_by_stable_reference_before_create(): void

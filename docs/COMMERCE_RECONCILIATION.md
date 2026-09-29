@@ -41,7 +41,7 @@ php artisan commerce:reconcile --limit=50
 - prints checked, changed, and failure counts;
 - exits nonzero if any item failed, while logging only sanitized internal/provider identifiers and exception types.
 
-The command is safe to rerun. Scheduling is deliberately not configured by this codebase; production operators may schedule the command only after choosing an appropriate cadence and monitoring policy.
+The command is safe to rerun. Laravel schedules it every five minutes with a batch limit of 50 and a ten-minute `withoutOverlapping` lock. This is a conservative first cadence for webhook recovery in a small webshop. Production uses one cron invocation of `php artisan schedule:run`; see `docs/PRODUCTION.md`. A non-zero exit must be monitored and investigated.
 
 ## Provider credentials and local demo mode
 
