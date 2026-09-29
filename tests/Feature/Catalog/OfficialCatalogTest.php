@@ -38,6 +38,17 @@ class OfficialCatalogTest extends TestCase
             ->has('products.data', 6)
             ->where('products.data.0.name', self::NAMES[0])
             ->where('products.data.5.name', self::NAMES[5]));
+
+        $this->get('/')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Storefront/Home')
+            ->has('featuredProducts', 6)
+            ->where('featuredProducts.0.position', 1)
+            ->has('featuredProducts.0.images', 5)
+            ->where('featuredProducts.0.category.slug', 't-shirts')
+            ->where('featuredProducts.0.collection.slug', 'core-essentials')
+            ->where('featuredProducts.5.position', 6)
+            ->where('collections.0.slug', 'drop-01')
+            ->where('collections.1.slug', 'core-essentials'));
     }
 
     public function test_categories_collections_and_optional_care_match_approved_catalog(): void

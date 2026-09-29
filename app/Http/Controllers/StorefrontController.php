@@ -21,8 +21,13 @@ class StorefrontController extends Controller
 
     public function home(): Response
     {
-        $products = $this->publishedProducts()->limit(4)->get()->map(fn (Product $product) => $this->productCard($product));
-        $collections = Collection::query()->where('status', CollectionStatus::Active)->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))->orderByDesc('published_at')->limit(3)->get(['id','name','slug','description']);
+        $products = $this->publishedProducts()->get()->map(fn (Product $product) => $this->productCard($product));
+        $collections = Collection::query()
+            ->where('status', CollectionStatus::Active)
+            ->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))
+            ->orderByRaw("CASE slug WHEN 'drop-01' THEN 1 WHEN 'core-essentials' THEN 2 ELSE 3 END")
+            ->limit(3)
+            ->get(['id','name','slug','description']);
         return Inertia::render('Storefront/Home', ['featuredProducts'=>$products, 'collections'=>$collections, 'seo'=>$this->seo->home()]);
     }
 
@@ -63,14 +68,18 @@ class StorefrontController extends Controller
 
     private function publishedProducts(): Builder
     {
-        return Product::query()->where('status', ProductStatus::Active)->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at','<=',now()))->with(['images','variants'=>fn ($q) => $q->where('status', VariantStatus::Active)->with('inventory')])->orderBy('position')->orderBy('id');
+        return Product::query()->where('status', ProductStatus::Active)->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at','<=',now()))->with(['images','categories:id,name,slug','collections:id,name,slug','variants'=>fn ($q) => $q->where('status', VariantStatus::Active)->with('inventory')])->orderBy('position')->orderBy('id');
     }
 
     private function productCard(Product $product): array
     {
         $prices = $product->variants->map(fn ($variant) => $variant->price_override ?? $product->base_price);
         $available = $product->variants->contains(fn ($variant) => $variant->inventory && ($variant->inventory->quantity_on_hand - $variant->inventory->quantity_reserved) > 0);
-        return ['id'=>$product->id,'name'=>$product->name,'slug'=>$product->slug,'shortDescription'=>$product->short_description,'price'=>$prices->min() ?? $product->base_price,'priceVaries'=>$prices->unique()->count()>1,'image'=>$this->imageUrl($product->images->first()?->path),'imageAlt'=>$product->images->first()?->alt_text ?: $product->name,'available'=>$available];
+        return ['id'=>$product->id,'name'=>$product->name,'slug'=>$product->slug,'position'=>$product->position,'shortDescription'=>$product->short_description,'price'=>$prices->min() ?? $product->base_price,'priceVaries'=>$prices->unique()->count()>1,'image'=>$this->imageUrl($product->images->first()?->path),'imageAlt'=>$product->images->first()?->alt_text ?: $product->name,'available'=>$available,
+            'images'=>$product->images->map(fn ($image)=>['url'=>$this->imageUrl($image->path),'alt'=>$image->alt_text ?: $product->name,'width'=>$image->width,'height'=>$image->height])->values(),
+            'category'=>$product->categories->first()?->only('name','slug'),
+            'collection'=>$product->collections->first()?->only('name','slug'),
+        ];
     }
 
     private function productDetail(Product $product): array
