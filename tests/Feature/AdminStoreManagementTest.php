@@ -16,7 +16,18 @@ class AdminStoreManagementTest extends TestCase
     public function test_owner_can_manage_store_information_and_checkout_shipping(): void
     {
         $owner=User::factory()->create(['role'=>AdminRole::Owner]);
-        $this->actingAs($owner)->patch('/admin/store',['company_name'=>'Local QA Store','contact_email'=>'owner@example.test','country_code'=>'NL'])->assertSessionHasNoErrors();
+        $this->actingAs($owner)->patch('/admin/store',[
+            'brand_name' => 'RAOZA',
+            'company_name' => 'Local QA Store',
+            'contact_email' => 'owner@example.test',
+            'support_email' => 'support@example.test',
+            'country' => 'Netherlands',
+            'country_code' => 'NL',
+            'currency' => 'EUR',
+            'locale' => 'en-NL',
+            'shipping_origin' => 'Netherlands',
+            'customer_service' => 'Email customer service for help.',
+        ])->assertSessionHasNoErrors();
         $this->assertSame('Local QA Store',SiteContent::where('key','store_information')->firstOrFail()->value['company_name']);
 
         $this->post('/admin/store/shipping-methods',['name'=>'QA Standard','code'=>'qa-standard','provider'=>'demo','price'=>495,'currency'=>'EUR','active'=>true,'position'=>1,'description'=>'Local QA only'])->assertSessionHasNoErrors();

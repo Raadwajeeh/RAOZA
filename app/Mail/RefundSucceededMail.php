@@ -12,6 +12,7 @@ class RefundSucceededMail extends TransactionalMail
     public function build(): static
     {
         return $this->subject('Refund completed — '.$this->order->order_number)
-            ->view('emails.refund-succeeded');
+            ->view('emails.refund-succeeded')
+            ->with('store', $this->storeInformation());
     }
 }

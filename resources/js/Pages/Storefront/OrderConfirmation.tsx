@@ -2,18 +2,19 @@ import { Form, Head, Link } from '@inertiajs/react';
 import Money from '../../Components/Money';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 
-type Order={number:string;email:string;subtotal:number;discount:number;discountCode?:string|null;shipping:number;shippingMethod?:string|null;tax:number;taxRateBasisPoints:number;total:number;paymentStatus:string;orderStatus:string;fulfillmentStatus:string;canPay:boolean;latestPaymentStatus?:string|null;items:{name:string;options:Record<string,string>;quantity:number;total:number}[]};
+type Address={first_name:string;last_name:string;company?:string|null;street:string;house_number:string;addition?:string|null;postal_code:string;city:string;country_code:string};
+type Order={number:string;email:string;subtotal:number;discount:number;discountCode?:string|null;shipping:number;shippingMethod?:string|null;tax:number;taxRateBasisPoints:number;total:number;paymentStatus:string;orderStatus:string;fulfillmentStatus:string;canPay:boolean;latestPaymentStatus?:string|null;shippingAddress?:Address|null;items:{name:string;options:Record<string,string>;quantity:number;total:number}[]};
 
 const human=(value?:string|null)=>(value||'pending').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 
-export default function OrderConfirmation({order,demoMode}:{order:Order;demoMode:boolean}){
-    const paid=order.paymentStatus==='paid';
-    const paymentProblem=['failed','cancelled'].includes(order.latestPaymentStatus||'');
+export default function OrderConfirmation({order}:{order:Order}){
+    const paid=['paid','partially_refunded','refunded'].includes(order.paymentStatus);
+    const paymentProblem=['failed','cancelled','expired'].includes(order.latestPaymentStatus||'');
     const steps=paid
         ? [{n:'01',label:'Order',detail:'Confirmed',active:true},{n:'02',label:'Payment',detail:'Verified',active:true},{n:'03',label:'Production',detail:human(order.fulfillmentStatus),active:['printing','ready_to_ship','fulfilled'].includes(order.fulfillmentStatus)},{n:'04',label:'Delivery',detail:order.fulfillmentStatus==='fulfilled'?'Fulfilled':'Next',active:order.fulfillmentStatus==='fulfilled'}]
         : [{n:'01',label:'Order',detail:'Reserved',active:true},{n:'02',label:'Payment',detail:paymentProblem?'Action needed':'Pending',active:false},{n:'03',label:'Production',detail:'After payment',active:false},{n:'04',label:'Delivery',detail:'After production',active:false}];
 
-    return <StorefrontLayout><Head title={`Order ${order.number} — RAOZA`}/><main className="mx-auto max-w-[1240px] px-5 py-12 md:px-10 md:py-20">
+    return <StorefrontLayout><Head title={`Order ${order.number} — RAOZA`}><meta name="robots" content="noindex,nofollow"/></Head><main className="mx-auto max-w-[1240px] px-5 py-12 md:px-10 md:py-20">
         <header className="grid gap-8 border-b border-raoza-primary/20 pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
             <div><p className="text-[10px] uppercase tracking-[.24em] text-raoza-secondary">{paid?'Order confirmed':'Complete your order'}</p><h1 className="mt-3 max-w-4xl font-display text-5xl leading-[.92] text-raoza-primary sm:text-6xl md:text-8xl">{paid?'Thank you. Your RAOZA piece is in motion.':'One last step.'}</h1></div>
             <div className="lg:text-right"><p className="text-[10px] uppercase tracking-[.18em] text-raoza-black/45">Order reference</p><p className="mt-2 text-sm font-semibold tracking-[.08em]">{order.number}</p></div>
@@ -34,10 +35,11 @@ export default function OrderConfirmation({order,demoMode}:{order:Order;demoMode
 
             <aside className="lg:border-l lg:border-raoza-primary/20 lg:pl-10"><p className="text-[10px] uppercase tracking-[.2em] text-raoza-secondary">Summary</p><div className="mt-5 space-y-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><Money amount={order.subtotal}/></div>{order.discount>0&&<div className="flex justify-between"><span>Discount {order.discountCode?`(${order.discountCode})`:''}</span><span>− <Money amount={order.discount}/></span></div>}<div className="flex justify-between"><span>{order.shippingMethod||'Shipping'}</span><Money amount={order.shipping}/></div><div className="flex justify-between text-xs text-raoza-black/50"><span>VAT included ({(order.taxRateBasisPoints/100).toFixed(0)}%)</span><Money amount={order.tax}/></div><div className="mt-5 flex items-end justify-between border-t border-raoza-primary/20 pt-5"><span className="text-xs uppercase tracking-[.14em]">Total</span><span className="font-display text-3xl text-raoza-primary"><Money amount={order.total}/></span></div></div>
                 <div className="mt-7 grid gap-2 border-y border-raoza-primary/15 py-5 text-[10px] uppercase tracking-[.13em]"><div className="flex justify-between"><span className="text-raoza-black/45">Payment</span><span>{human(order.paymentStatus)}</span></div><div className="flex justify-between"><span className="text-raoza-black/45">Order</span><span>{human(order.orderStatus)}</span></div><div className="flex justify-between"><span className="text-raoza-black/45">Fulfillment</span><span>{human(order.fulfillmentStatus)}</span></div></div>
-                {demoMode&&!paid&&<p className="mt-5 border border-raoza-gold/70 bg-raoza-gold/10 p-4 text-xs leading-5"><strong>Local demo.</strong> The payment screen lets you test success, failure and cancellation without real money.</p>}
                 {paymentProblem&&!paid&&<p role="alert" className="mt-5 border border-raoza-secondary/35 p-4 text-xs leading-5 text-raoza-secondary">The previous payment attempt was {order.latestPaymentStatus}. Your order can be retried while payment remains available.</p>}
+                {order.shippingAddress&&<div className="mt-6 border-t border-raoza-primary/15 pt-5 text-sm leading-6"><p className="text-[10px] uppercase tracking-[.15em] text-raoza-black/45">Shipping to</p><p className="mt-2 font-semibold">{order.shippingAddress.first_name} {order.shippingAddress.last_name}</p>{order.shippingAddress.company&&<p>{order.shippingAddress.company}</p>}<p>{order.shippingAddress.street} {order.shippingAddress.house_number}{order.shippingAddress.addition?` ${order.shippingAddress.addition}`:''}</p><p>{order.shippingAddress.postal_code} {order.shippingAddress.city} · {order.shippingAddress.country_code}</p></div>}
                 {order.canPay&&<Form action={`/orders/${order.number}/pay`} method="post" className="mt-6" disableWhileProcessing>{({processing,errors})=><><button disabled={processing} className="raoza-button w-full disabled:opacity-45">{processing?'Opening payment…':order.latestPaymentStatus?'Retry payment':'Continue to secure payment'}</button>{errors.payment&&<p role="alert" className="mt-3 text-xs text-raoza-secondary">{errors.payment}</p>}</>}</Form>}
                 <Link href="/shop" className="raoza-button raoza-button-outline mt-3 w-full text-center">Continue shopping</Link>
+                <p className="mt-5 text-xs leading-5 text-raoza-black/55">Need help with this order? <Link href="/pages/contact" className="font-semibold underline underline-offset-2">Contact customer service</Link> and include your order reference.</p>
             </aside>
         </div>
     </main></StorefrontLayout>;

@@ -6,7 +6,7 @@ const field = 'mt-1 min-h-11 w-full border border-raoza-primary/20 bg-white px-3
 const emptyShipping = { name: '', code: '', provider: 'manual', price: 0, currency: 'EUR', active: true, position: 0, description: '' };
 
 export default function StoreIndex({ store, shippingMethods }: any) {
-    const info = useForm({ company_name: store.company_name ?? '', contact_email: store.contact_email ?? '', contact_phone: store.contact_phone ?? '', street: store.street ?? '', house_number: store.house_number ?? '', addition: store.addition ?? '', postal_code: store.postal_code ?? '', city: store.city ?? '', country_code: store.country_code ?? 'NL', registration_number: store.registration_number ?? '', vat_number: store.vat_number ?? '' });
+    const info = useForm({ brand_name: store.brand_name ?? 'RAOZA', company_name: store.company_name ?? '', contact_email: store.contact_email ?? '', support_email: store.support_email ?? '', contact_phone: store.contact_phone ?? '', street: store.street ?? '', house_number: store.house_number ?? '', addition: store.addition ?? '', postal_code: store.postal_code ?? '', city: store.city ?? '', country: store.country ?? 'Netherlands', country_code: store.country_code ?? 'NL', registration_number: store.registration_number ?? '', vat_number: store.vat_number ?? '', currency: store.currency ?? 'EUR', locale: store.locale ?? 'en-NL', shipping_origin: store.shipping_origin ?? 'Netherlands', customer_service: store.customer_service ?? '', instagram_url: store.instagram_url ?? '' });
     const [editing, setEditing] = useState<any>(null);
     const shipping = useForm(emptyShipping);
     const edit = (method: any) => {
@@ -21,17 +21,25 @@ export default function StoreIndex({ store, shippingMethods }: any) {
             <form onSubmit={e => { e.preventDefault(); info.patch('/admin/store', { preserveScroll: true }); }} className="border bg-white p-5 sm:p-6">
                 <h2 className="font-display text-2xl">Company & contact information</h2><p className="mt-1 text-xs opacity-55">Leave unknown values empty; nothing is fabricated or automatically published.</p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm">Company name<input className={field} value={info.data.company_name} onChange={e => info.setData('company_name', e.target.value)} /></label>
+                    <label className="text-sm">Brand name<input required className={field} value={info.data.brand_name} onChange={e => info.setData('brand_name', e.target.value)} /></label>
+                    <label className="text-sm">Company name<input required className={field} value={info.data.company_name} onChange={e => info.setData('company_name', e.target.value)} /></label>
                     <label className="text-sm">Contact email<input type="email" className={field} value={info.data.contact_email} onChange={e => info.setData('contact_email', e.target.value)} /></label>
+                    <label className="text-sm">Support email<input type="email" className={field} value={info.data.support_email} onChange={e => info.setData('support_email', e.target.value)} /></label>
                     <label className="text-sm">Contact phone<input className={field} value={info.data.contact_phone} onChange={e => info.setData('contact_phone', e.target.value)} /></label>
                     <label className="text-sm">Street<input className={field} value={info.data.street} onChange={e => info.setData('street', e.target.value)} /></label>
                     <label className="text-sm">House number<input className={field} value={info.data.house_number} onChange={e => info.setData('house_number', e.target.value)} /></label>
                     <label className="text-sm">Addition<input className={field} value={info.data.addition} onChange={e => info.setData('addition', e.target.value)} /></label>
                     <label className="text-sm">Postal code<input className={field} value={info.data.postal_code} onChange={e => info.setData('postal_code', e.target.value)} /></label>
                     <label className="text-sm">City<input className={field} value={info.data.city} onChange={e => info.setData('city', e.target.value)} /></label>
+                    <label className="text-sm">Country<input required className={field} value={info.data.country} onChange={e => info.setData('country', e.target.value)} /></label>
                     <label className="text-sm">Country code<input maxLength={2} className={field} value={info.data.country_code} onChange={e => info.setData('country_code', e.target.value.toUpperCase())} /></label>
                     <label className="text-sm">Registration number<input className={field} value={info.data.registration_number} onChange={e => info.setData('registration_number', e.target.value)} /></label>
                     <label className="text-sm">VAT number<input className={field} value={info.data.vat_number} onChange={e => info.setData('vat_number', e.target.value)} /></label>
+                    <label className="text-sm">Currency<input maxLength={3} className={field} value={info.data.currency} onChange={e => info.setData('currency', e.target.value.toUpperCase())} /></label>
+                    <label className="text-sm">Locale<input className={field} value={info.data.locale} onChange={e => info.setData('locale', e.target.value)} /></label>
+                    <label className="text-sm sm:col-span-2">Shipping origin<input className={field} value={info.data.shipping_origin} onChange={e => info.setData('shipping_origin', e.target.value)} /></label>
+                    <label className="text-sm sm:col-span-2">Customer-service message<textarea rows={3} className={field} value={info.data.customer_service} onChange={e => info.setData('customer_service', e.target.value)} /></label>
+                    <label className="text-sm sm:col-span-2">Instagram URL<input type="url" className={field} value={info.data.instagram_url} onChange={e => info.setData('instagram_url', e.target.value)} /></label>
                 </div>
                 {Object.keys(info.errors).length > 0 && <p role="alert" className="mt-4 text-sm text-red-800">{Object.values(info.errors)[0]}</p>}
                 <button disabled={info.processing} className="mt-5 min-h-12 bg-raoza-primary px-5 text-sm text-raoza-cream">Save store information</button>

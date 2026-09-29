@@ -11,6 +11,7 @@ class OrderReceivedMail extends TransactionalMail
     public function build(): static
     {
         return $this->subject('We received your RAOZA order '.$this->order->order_number)
-            ->view('emails.order-received');
+            ->view('emails.order-received')
+            ->with('store', $this->storeInformation());
     }
 }

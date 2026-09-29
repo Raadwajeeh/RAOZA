@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Domain\Commerce\Models\CartItem;
 use App\Domain\Commerce\Services\CartService;
 use App\Http\Middleware\ResolveCart;
+use App\Domain\Marketing\Services\AnalyticsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,10 +16,11 @@ class CartController extends Controller
     {
         return Inertia::render('Storefront/Cart', ['cart'=>$service->summary(ResolveCart::from($request))]);
     }
-    public function store(Request $request, CartService $service): RedirectResponse
+    public function store(Request $request, CartService $service, AnalyticsService $analytics): RedirectResponse
     {
         $data=$request->validate(['variant_id'=>['required','integer'],'quantity'=>['required','integer','min:1','max:20']]);
         $service->add(ResolveCart::from($request),(int)$data['variant_id'],(int)$data['quantity']);
+        $analytics->record($request, 'add_to_cart', ['variant_id' => (int) $data['variant_id'], 'quantity' => (int) $data['quantity']]);
         return back()->with('success','Added to bag.');
     }
     public function update(Request $request, CartItem $cartItem, CartService $service): RedirectResponse

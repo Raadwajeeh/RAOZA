@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder {
   foreach($pages as [$key,$title,$slug,$intro,$body])ContentPage::updateOrCreate(['key'=>$key],['title'=>$title,'slug'=>$slug,'status'=>ContentStatus::Published,'content'=>['intro'=>$intro,'sections'=>[['heading'=>'Local review copy','body'=>$body]]],'seo_title'=>$title.' — RAOZA','seo_description'=>$intro,'indexable'=>true,'published_at'=>now()->subDay()]);
   SiteContent::updateOrCreate(['key'=>'demo_notice'],['value'=>['enabled'=>true,'text'=>'Local demo data — replace products, policies, shipping and credentials before production.']]);
   });
+  $this->call(StorefrontContentSeeder::class);
   $this->command?->info('RAOZA demo seeded. Admin: admin@raoza.test / RaozaDemo!2026');
  }
 }

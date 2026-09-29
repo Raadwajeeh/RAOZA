@@ -3,6 +3,7 @@ namespace App\Http\Middleware;
 use App\Domain\Catalog\Enums\{CategoryStatus,CollectionStatus};
 use App\Domain\Catalog\Models\{Category,Collection};
 use App\Domain\Commerce\Models\Cart;
+use App\Domain\Content\Services\StoreInformation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 class HandleInertiaRequests extends Middleware
@@ -20,7 +21,7 @@ class HandleInertiaRequests extends Middleware
                 'collections'=>Collection::query()->where('status',CollectionStatus::Active)->where(fn($q)=>$q->whereNull('published_at')->orWhere('published_at','<=',now()))->latest('published_at')->limit(4)->get(['name','slug'])->toArray(),
             ],
             'consent'=>['decided'=>$request->session()->has('consent.id'),'analytics'=>(bool)$request->session()->get('consent.analytics',false),'marketing'=>(bool)$request->session()->get('consent.marketing',false)],
-            'demo'=>['enabled'=>(bool)config('commerce.demo_mode')],
+            'store'=>fn()=>app(StoreInformation::class)->get(),
             'flash'=>['success'=>fn()=>$request->session()->get('success'),'errors'=>fn()=>$request->session()->get('errors')?->getBag('default')->getMessages() ?? []],
         ];
     }

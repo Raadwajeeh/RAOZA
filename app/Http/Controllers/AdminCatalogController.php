@@ -55,6 +55,7 @@ class AdminCatalogController
     {
         $d=$r->validate([
             'name'=>'required|string|max:160','slug'=>'nullable|string|max:180|unique:products,slug','description'=>'nullable|string',
+            'fit_notes'=>'nullable|string|max:5000','product_details'=>'nullable|string|max:5000','care_instructions'=>'nullable|string|max:5000',
             'base_price'=>'required|integer|min:0','status'=>['required',Rule::in(['draft','active','archived'])],
             'published_at'=>'nullable|date','seo_title'=>'nullable|string|max:255','seo_description'=>'nullable|string|max:500',
             'canonical_url'=>'nullable|url|max:2048','indexable'=>'boolean','category_ids'=>'array','category_ids.*'=>'integer|exists:categories,id',
@@ -76,7 +77,8 @@ class AdminCatalogController
         $before=$product->toArray();
         $d=$r->validate([
             'name'=>'required|string|max:160','slug'=>['required','string','max:180',Rule::unique('products','slug')->ignore($product->id)],
-            'description'=>'nullable|string','base_price'=>'required|integer|min:0','status'=>['required',Rule::in(['draft','active','archived'])],
+            'description'=>'nullable|string','fit_notes'=>'nullable|string|max:5000','product_details'=>'nullable|string|max:5000','care_instructions'=>'nullable|string|max:5000',
+            'base_price'=>'required|integer|min:0','status'=>['required',Rule::in(['draft','active','archived'])],
             'seo_title'=>'nullable|string|max:255','seo_description'=>'nullable|string|max:500',
             'canonical_url'=>'nullable|url|max:2048','indexable'=>'boolean','published_at'=>'nullable|date',
             'category_ids'=>'array','category_ids.*'=>'integer|exists:categories,id','collection_ids'=>'array','collection_ids.*'=>'integer|exists:collections,id',

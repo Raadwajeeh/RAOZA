@@ -21,6 +21,10 @@ use App\Http\Controllers\DemoPaymentController;
 use App\Domain\Content\Enums\ContentStatus;
 use App\Domain\Content\Models\ContentPage;
 use App\Domain\Catalog\Enums\ProductStatus;
+use App\Domain\Catalog\Enums\CategoryStatus;
+use App\Domain\Catalog\Enums\CollectionStatus;
+use App\Domain\Catalog\Models\Category;
+use App\Domain\Catalog\Models\Collection;
 use App\Domain\Catalog\Models\Product;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
@@ -40,10 +44,19 @@ Route::get('/pages/{slug}', [ContentController::class, 'show'])->name('content.s
 Route::get('/sitemap.xml', function () {
     $urls = collect([[route('home'), now()], [route('shop'), now()]])
         ->merge(Product::query()->where('status', ProductStatus::Active)->where('indexable', true)->get()->map(fn ($p) => [route('products.show', $p), $p->updated_at]))
+        ->merge(Category::query()->where('status', CategoryStatus::Active)->where('indexable', true)->get()->map(fn ($category) => [route('categories.show', $category), $category->updated_at]))
+        ->merge(Collection::query()->where('status', CollectionStatus::Active)->where('indexable', true)->where(fn ($query) => $query->whereNull('published_at')->orWhere('published_at', '<=', now()))->get()->map(fn ($collection) => [route('collections.show', $collection), $collection->updated_at]))
         ->merge(ContentPage::query()->where('status', ContentStatus::Published)->where('indexable', true)->get()->map(fn ($x) => [route('content.show', $x->slug), $x->updated_at]));
     $xml = view('sitemap', compact('urls'))->render();
     return Response::make($xml, 200, ['Content-Type' => 'application/xml']);
 })->name('sitemap');
+Route::get('/robots.txt', function () {
+    $lines = app()->environment('production')
+        ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /cart', 'Disallow: /checkout', 'Disallow: /order-confirmation', 'Disallow: /payments', 'Disallow: /demo', 'Sitemap: '.route('sitemap')]
+        : ['User-agent: *', 'Disallow: /'];
+
+    return Response::make(implode("\n", $lines)."\n", 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+})->name('robots');
 
 Route::get('/cart', [CartController::class, 'show'])->name('cart.show');
 Route::post('/cart/items', [CartController::class, 'store'])->middleware('throttle:60,1')->name('cart.items.store');

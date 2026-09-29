@@ -28,6 +28,11 @@ export default function SeoHead({ seo }: { seo: Seo }) {
                 content={description}
             />
             <meta head-key="og-url" property="og:url" content={seo.canonical} />
+            <meta head-key="og-type" property="og:type" content="website" />
+            <meta head-key="og-site-name" property="og:site_name" content="RAOZA" />
+            <meta head-key="twitter-card" name="twitter:card" content={seo.og ? 'summary_large_image' : 'summary'} />
+            <meta head-key="twitter-title" name="twitter:title" content={seo.title} />
+            <meta head-key="twitter-description" name="twitter:description" content={description} />
 
             {seo.og ? (
                 <meta head-key="og-image" property="og:image" content={seo.og} />

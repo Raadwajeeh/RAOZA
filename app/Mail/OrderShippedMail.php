@@ -12,6 +12,7 @@ class OrderShippedMail extends TransactionalMail
     public function build(): static
     {
         return $this->subject('Your RAOZA order has shipped — '.$this->order->order_number)
-            ->view('emails.order-shipped');
+            ->view('emails.order-shipped')
+            ->with('store', $this->storeInformation());
     }
 }
