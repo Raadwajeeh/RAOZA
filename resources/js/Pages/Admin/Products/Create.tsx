@@ -5,7 +5,7 @@ const field = 'mt-1 min-h-11 w-full border border-raoza-primary/20 bg-white px-3
 
 export default function CreateProduct({ categories, collections }: any) {
     const form = useForm({
-        name: '', slug: '', description: '', base_price: 0, status: 'draft', published_at: '',
+        name: '', slug: '', description: '', short_description: '', position: 0, base_price: 0, status: 'draft', published_at: '',
         category_ids: [] as number[], collection_ids: [] as number[], seo_title: '', seo_description: '',
         canonical_url: '', indexable: true,
     });
@@ -26,7 +26,9 @@ export default function CreateProduct({ categories, collections }: any) {
                     <label className="text-sm font-medium sm:col-span-2">Product name *<input autoFocus required className={field} value={form.data.name} onChange={e => form.setData('name', e.target.value)} /></label>
                     <label className="text-sm font-medium">Slug <input className={field} placeholder="Generated from name when empty" value={form.data.slug} onChange={e => form.setData('slug', e.target.value)} /></label>
                     <label className="text-sm font-medium">Base price (€) *<input required type="number" min="0" step="0.01" inputMode="decimal" className={field} value={(form.data.base_price / 100).toFixed(2)} onChange={e => form.setData('base_price', Math.round(Number(e.target.value) * 100))} /><span className="mt-1 block text-xs font-normal opacity-55">Enter the customer-facing price including cents.</span></label>
+                    <label className="text-sm font-medium sm:col-span-2">Short description<textarea rows={2} className={field} value={form.data.short_description} onChange={e => form.setData('short_description', e.target.value)} /></label>
                     <label className="text-sm font-medium sm:col-span-2">Description<textarea rows={5} className={field} value={form.data.description} onChange={e => form.setData('description', e.target.value)} /></label>
+                    <label className="text-sm font-medium">Catalog position<input type="number" min="0" max="10000" className={field} value={form.data.position} onChange={e => form.setData('position', Number(e.target.value))} /></label>
                 </div></section>
                 <section className="border border-raoza-primary/15 bg-white p-5 sm:p-6"><p className="text-xs uppercase tracking-[.18em] text-raoza-secondary">02 · Placement</p><h2 className="mt-2 font-display text-2xl">Categories & collections</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">
                     <fieldset><legend className="text-sm font-semibold">Categories</legend><div className="mt-2 space-y-2">{categories.map((item: any) => <label key={item.id} className="flex min-h-11 items-center gap-3 border p-3 text-sm"><input type="checkbox" checked={form.data.category_ids.includes(item.id)} onChange={() => toggle('category_ids', item.id)} />{item.name}<span className="ml-auto text-xs opacity-50">{item.status}</span></label>)}</div></fieldset>

@@ -51,7 +51,7 @@ final class SeoService
         $prices = $product->variants->map(fn ($variant) => $variant->price_override ?? $product->base_price);
         $available = $product->variants->contains(fn ($variant) => $variant->inventory && ($variant->inventory->quantity_on_hand - $variant->inventory->quantity_reserved) > 0);
         $canonical = $product->canonical_url ?: route('products.show', $product);
-        $image = $product->og_image ?: $this->imageUrl($product->images->first()?->path);
+        $image = $this->imageUrl($product->og_image ?: $product->images->first()?->path);
         $category = $product->categories->first();
 
         return $this->meta(

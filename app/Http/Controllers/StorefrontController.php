@@ -63,22 +63,24 @@ class StorefrontController extends Controller
 
     private function publishedProducts(): Builder
     {
-        return Product::query()->where('status', ProductStatus::Active)->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at','<=',now()))->with(['images','variants'=>fn ($q) => $q->where('status', VariantStatus::Active)->with('inventory')])->orderByDesc('published_at')->orderByDesc('id');
+        return Product::query()->where('status', ProductStatus::Active)->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at','<=',now()))->with(['images','variants'=>fn ($q) => $q->where('status', VariantStatus::Active)->with('inventory')])->orderBy('position')->orderBy('id');
     }
 
     private function productCard(Product $product): array
     {
         $prices = $product->variants->map(fn ($variant) => $variant->price_override ?? $product->base_price);
         $available = $product->variants->contains(fn ($variant) => $variant->inventory && ($variant->inventory->quantity_on_hand - $variant->inventory->quantity_reserved) > 0);
-        return ['id'=>$product->id,'name'=>$product->name,'slug'=>$product->slug,'price'=>$prices->min() ?? $product->base_price,'priceVaries'=>$prices->unique()->count()>1,'image'=>$this->imageUrl($product->images->first()?->path),'imageAlt'=>$product->images->first()?->alt_text ?: $product->name,'available'=>$available];
+        return ['id'=>$product->id,'name'=>$product->name,'slug'=>$product->slug,'shortDescription'=>$product->short_description,'price'=>$prices->min() ?? $product->base_price,'priceVaries'=>$prices->unique()->count()>1,'image'=>$this->imageUrl($product->images->first()?->path),'imageAlt'=>$product->images->first()?->alt_text ?: $product->name,'available'=>$available];
     }
 
     private function productDetail(Product $product): array
     {
-        return ['id'=>$product->id,'name'=>$product->name,'slug'=>$product->slug,'description'=>$product->description,'fitNotes'=>$product->fit_notes,'productDetails'=>$product->product_details,'careInstructions'=>$product->care_instructions,'seoTitle'=>$product->seo_title,'seoDescription'=>$product->seo_description,'basePrice'=>$product->base_price,
+        $activeValueIds = $product->variants->flatMap(fn ($variant) => $variant->optionValues->pluck('id'))->unique();
+
+        return ['id'=>$product->id,'name'=>$product->name,'slug'=>$product->slug,'description'=>$product->description,'shortDescription'=>$product->short_description,'position'=>$product->position,'fitNotes'=>$product->fit_notes,'productDetails'=>$product->product_details,'careInstructions'=>$product->care_instructions,'seoTitle'=>$product->seo_title,'seoDescription'=>$product->seo_description,'basePrice'=>$product->base_price,
             'category'=>$product->categories->first()?->only('name','slug'),'collection'=>$product->collections->first()?->only('name','slug'),
             'images'=>$product->images->map(fn ($image)=>['id'=>$image->id,'url'=>$this->imageUrl($image->path),'alt'=>$image->alt_text ?: $product->name])->values(),
-            'options'=>$product->options->map(fn ($option)=>['id'=>$option->id,'name'=>$option->name,'values'=>$option->values->map(fn ($value)=>['id'=>$value->id,'value'=>$value->value,'metadata'=>$value->metadata])->values()])->values(),
+            'options'=>$product->options->map(fn ($option)=>['id'=>$option->id,'name'=>$option->name,'values'=>$option->values->whereIn('id',$activeValueIds)->map(fn ($value)=>['id'=>$value->id,'value'=>$value->value,'metadata'=>$value->metadata])->values()])->filter(fn ($option)=>$option['values']->isNotEmpty())->values(),
             'variants'=>$product->variants->map(function ($variant) use ($product) { $available=max(0,($variant->inventory?->quantity_on_hand ?? 0)-($variant->inventory?->quantity_reserved ?? 0)); return ['id'=>$variant->id,'sku'=>$variant->sku,'price'=>$variant->price_override ?? $product->base_price,'availableQuantity'=>$available,'available'=>$available>0,'optionValueIds'=>$variant->optionValues->pluck('id')->values(),'options'=>$variant->optionValues->mapWithKeys(fn ($value)=>[$value->option->name=>$value->value]),'images'=>$variant->images->map(fn ($image)=>['url'=>$this->imageUrl($image->path),'alt'=>$image->alt_text ?: $product->name])->values()]; })->values()];
     }
 

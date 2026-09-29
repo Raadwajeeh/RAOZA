@@ -1,41 +1,115 @@
 <?php
+
 namespace Database\Seeders;
-use App\Domain\Admin\Enums\AdminRole;use App\Domain\Catalog\Enums\{CategoryStatus,CollectionStatus,ProductStatus,VariantStatus};use App\Domain\Catalog\Models\{Category,Collection,Product,ProductImage,ProductOption,ProductOptionValue,ProductVariant};use App\Domain\Catalog\VariantSignature;use App\Domain\Content\Enums\ContentStatus;use App\Domain\Content\Models\{ContentPage,SiteContent};use App\Domain\Fulfillment\Models\ShippingMethod;use App\Domain\Inventory\Models\{Inventory,InventoryMovement};use App\Domain\Inventory\Enums\InventoryMovementType;use App\Domain\Marketing\Models\Discount;use App\Models\User;use Illuminate\Database\Seeder;use Illuminate\Support\Facades\{DB,Hash};
-class DatabaseSeeder extends Seeder {
- public function run():void {
-  if(!app()->environment(['local','testing'])){$this->command?->warn('Demo seed skipped outside local/testing.');return;}
-  DB::transaction(function(){
-  User::updateOrCreate(['email'=>'admin@raoza.test'],['name'=>'RAOZA Local QA Owner','password'=>Hash::make('RaozaDemo!2026'),'is_admin'=>true,'role'=>AdminRole::Owner]);
-  $tees=Category::updateOrCreate(['slug'=>'t-shirts'],['name'=>'T-Shirts','status'=>CategoryStatus::Active,'position'=>1]);$hoodies=Category::updateOrCreate(['slug'=>'hoodies'],['name'=>'Hoodies','status'=>CategoryStatus::Active,'position'=>2]);
-  $drop=Collection::updateOrCreate(['slug'=>'drop-01'],['name'=>'Drop 01','description'=>'The first RAOZA demo edit: graphic essentials in the core palette.','status'=>CollectionStatus::Active,'published_at'=>now()->subDay(),'indexable'=>true]);
-  $essentials=Collection::updateOrCreate(['slug'=>'core-essentials'],['name'=>'Core Essentials','description'=>'Clean everyday pieces used to test the complete storefront experience.','status'=>CollectionStatus::Active,'published_at'=>now()->subDay(),'indexable'=>true]);
-  $products=[
-   ['Editorial Mark Tee','editorial-mark-tee',3495,$tees,$drop,'/demo/product-burgundy.svg','A clean graphic T-shirt built around the RAOZA editorial mark.',['Cream','Burgundy']],
-   ['After Dark Tee','after-dark-tee',3695,$tees,$drop,'/demo/product-black.svg','A dark graphic tee with restrained front artwork and an urban editorial mood.',['Black','Cream']],
-   ['Studio Type Tee','studio-type-tee',3295,$tees,$essentials,'/demo/product-cream.svg','An understated typography T-shirt for everyday layering.',['Cream','Black']],
-   ['RA Monogram Hoodie','ra-monogram-hoodie',6495,$hoodies,$drop,'/demo/product-rose.svg','A heavyweight-feel demo hoodie presentation featuring the RA monogram direction.',['Burgundy','Black']],
-   ['Quiet Signal Hoodie','quiet-signal-hoodie',6995,$hoodies,$essentials,'/demo/product-gold.svg','A premium-positioned hoodie concept with a minimal graphic signal.',['Black','Cream']],
-   ['Archive 01 Hoodie','archive-01-hoodie',6795,$hoodies,$essentials,'/demo/product-editorial.svg','A neutral hoodie concept used to demonstrate low-stock and sold-out variants.',['Cream','Burgundy']],
-  ];
-  foreach($products as $pi=>$d){[$name,$slug,$price,$cat,$col,$image,$desc,$colors]=$d;$p=Product::updateOrCreate(['slug'=>$slug],['name'=>$name,'description'=>$desc,'status'=>ProductStatus::Active,'base_price'=>$price,'seo_title'=>$name.' — RAOZA','seo_description'=>$desc,'indexable'=>true,'published_at'=>now()->subHours(12-$pi)]);$p->categories()->syncWithoutDetaching([$cat->id=>['position'=>$pi]]);$p->collections()->syncWithoutDetaching([$col->id=>['position'=>$pi]]);ProductImage::updateOrCreate(['product_id'=>$p->id,'path'=>$image],['variant_id'=>null,'alt_text'=>$name.' local QA image','position'=>0,'width'=>1200,'height'=>1500]);
-   $size=ProductOption::updateOrCreate(['product_id'=>$p->id,'name'=>'Size'],['position'=>1]);$color=ProductOption::updateOrCreate(['product_id'=>$p->id,'name'=>'Color'],['position'=>2]);$sizes=[];foreach(['S','M','L','XL'] as $i=>$v)$sizes[$v]=ProductOptionValue::updateOrCreate(['product_option_id'=>$size->id,'value'=>$v],['position'=>$i+1]);$colorVals=[];foreach($colors as $i=>$v)$colorVals[$v]=ProductOptionValue::updateOrCreate(['product_option_id'=>$color->id,'value'=>$v],['position'=>$i+1,'metadata'=>['swatch'=>match($v){'Cream'=>'#FFF6E6','Burgundy'=>'#330313','Black'=>'#111111',default=>'#602032'}]]);
-   $n=0;foreach($sizes as $sv=>$sval)foreach($colorVals as $cv=>$cval){$ids=[$sval->id,$cval->id];$sku='RZ-'.strtoupper(substr(preg_replace('/[^a-z0-9]/i','',$slug),0,6)).'-'.$sv.'-'.strtoupper(substr($cv,0,3));$v=ProductVariant::updateOrCreate(['sku'=>$sku],['product_id'=>$p->id,'price_override'=>null,'status'=>VariantStatus::Active,'option_signature'=>VariantSignature::fromOptionValueIds($ids)]);$v->optionValues()->sync($ids);$qty=($pi===5&&$sv==='XL')?0:(($pi===5&&$sv==='L')?2:8+(($pi+$n)%7));$inv=Inventory::firstOrCreate(['variant_id'=>$v->id],['quantity_on_hand'=>$qty,'quantity_reserved'=>0]);InventoryMovement::firstOrCreate(['variant_id'=>$v->id,'reference_type'=>'local_qa_seed','reference_id'=>'initial'],['type'=>InventoryMovementType::StockReceived,'quantity'=>$inv->quantity_on_hand,'note'=>'Local QA opening stock','created_at'=>now()]);$n++;}
-  }
-  ShippingMethod::updateOrCreate(['code'=>'nl-standard'],['name'=>'NL Standard Delivery','provider'=>'demo','price'=>495,'currency'=>'EUR','active'=>true,'position'=>1,'configuration'=>['description'=>'Demo rate — replace with your live carrier rate before production.']]);
-  ShippingMethod::updateOrCreate(['code'=>'nl-free'],['name'=>'Demo Free Delivery','provider'=>'demo','price'=>0,'currency'=>'EUR','active'=>true,'position'=>2,'configuration'=>['description'=>'Testing option for reviewing zero-cost shipping.']]);
-  Discount::updateOrCreate(['code'=>'WELCOME10'],['name'=>'Demo welcome 10%','type'=>'percentage','value'=>10,'minimum_order_amount'=>3000,'usage_limit'=>100,'per_customer_limit'=>2,'active'=>true]);Discount::updateOrCreate(['code'=>'RAOZA5'],['name'=>'Demo €5 discount','type'=>'fixed','value'=>500,'minimum_order_amount'=>5000,'usage_limit'=>100,'per_customer_limit'=>2,'active'=>true]);
-  $pages=[
-   ['about','About RAOZA','about','RAOZA is a design-led printed apparel label being built in the Netherlands.','This local demo content is intentionally replaceable before launch.'],
-   ['faq','FAQ','faq','Questions about the RAOZA demo store.','Use this page to review how structured informational content appears. Replace answers with approved customer-service information before launch.'],
-   ['shipping','Shipping & Delivery','shipping','Demo shipping information.','The local environment includes example Dutch shipping methods so checkout can be tested end to end. Live carrier, prices and delivery estimates must be approved before production.'],
-   ['returns','Returns & Refunds','returns','Demo returns information.','This is placeholder operational content, not final legal advice. Replace it with the approved Netherlands/EU returns policy before launch.'],
-   ['privacy','Privacy Policy','privacy','Demo privacy page.','Replace this page with the final privacy notice that accurately describes the production processors, analytics, retention and customer rights.'],
-   ['terms','Terms & Conditions','terms','Demo terms page.','Replace with approved terms and business identity details before accepting real customer orders.'],
-  ];
-  foreach($pages as [$key,$title,$slug,$intro,$body])ContentPage::updateOrCreate(['key'=>$key],['title'=>$title,'slug'=>$slug,'status'=>ContentStatus::Published,'content'=>['intro'=>$intro,'sections'=>[['heading'=>'Local review copy','body'=>$body]]],'seo_title'=>$title.' — RAOZA','seo_description'=>$intro,'indexable'=>true,'published_at'=>now()->subDay()]);
-  SiteContent::updateOrCreate(['key'=>'demo_notice'],['value'=>['enabled'=>true,'text'=>'Local demo data — replace products, policies, shipping and credentials before production.']]);
-  });
-  $this->call(StorefrontContentSeeder::class);
-  $this->command?->info('RAOZA demo seeded. Admin: admin@raoza.test / RaozaDemo!2026');
- }
+
+use App\Domain\Admin\Enums\AdminRole;
+use App\Domain\Catalog\Enums\CategoryStatus;
+use App\Domain\Catalog\Enums\CollectionStatus;
+use App\Domain\Catalog\Enums\ProductStatus;
+use App\Domain\Catalog\Enums\VariantStatus;
+use App\Domain\Catalog\Models\Category;
+use App\Domain\Catalog\Models\Collection;
+use App\Domain\Catalog\Models\Product;
+use App\Domain\Catalog\Models\ProductImage;
+use App\Domain\Catalog\Models\ProductOption;
+use App\Domain\Catalog\Models\ProductOptionValue;
+use App\Domain\Catalog\Models\ProductVariant;
+use App\Domain\Catalog\VariantSignature;
+use App\Domain\Content\Enums\ContentStatus;
+use App\Domain\Content\Models\ContentPage;
+use App\Domain\Content\Models\SiteContent;
+use App\Domain\Fulfillment\Models\ShippingMethod;
+use App\Domain\Inventory\Enums\InventoryMovementType;
+use App\Domain\Inventory\Models\Inventory;
+use App\Domain\Inventory\Models\InventoryMovement;
+use App\Domain\Marketing\Models\Discount;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        if (! app()->environment(['local', 'testing'])) {
+            $this->command?->warn('Demo seed skipped outside local/testing.');
+
+            return;
+        }
+        DB::transaction(function () {
+            User::updateOrCreate(['email' => 'admin@raoza.test'], ['name' => 'RAOZA Local QA Owner', 'password' => Hash::make('RaozaDemo!2026'), 'is_admin' => true, 'role' => AdminRole::Owner]);
+            $tees = Category::updateOrCreate(['slug' => 't-shirts'], ['name' => 'T-Shirts', 'status' => CategoryStatus::Active, 'position' => 1]);
+            $hoodies = Category::updateOrCreate(['slug' => 'hoodies'], ['name' => 'Hoodies', 'status' => CategoryStatus::Active, 'position' => 2]);
+            $drop = Collection::updateOrCreate(['slug' => 'drop-01'], ['name' => 'Drop 01', 'description' => 'The first RAOZA demo edit: graphic essentials in the core palette.', 'status' => CollectionStatus::Active, 'published_at' => now()->subDay(), 'indexable' => true]);
+            $essentials = Collection::updateOrCreate(['slug' => 'core-essentials'], ['name' => 'Core Essentials', 'description' => 'Clean everyday pieces used to test the complete storefront experience.', 'status' => CollectionStatus::Active, 'published_at' => now()->subDay(), 'indexable' => true]);
+            $hasOfficialCatalog = Product::query()->whereIn('slug', [
+                'raoza-signature-tee',
+                'raoza-editorial-tee',
+                'raoza-mark-tee',
+                'raoza-essential-hoodie',
+                'raoza-structured-hoodie',
+                'raoza-deep-burgundy-hoodie',
+            ])->exists();
+
+            $products = [
+                ['Editorial Mark Tee', 'editorial-mark-tee', 3495, $tees, $drop, '/demo/product-burgundy.svg', 'A clean graphic T-shirt built around the RAOZA editorial mark.', ['Cream', 'Burgundy']],
+                ['After Dark Tee', 'after-dark-tee', 3695, $tees, $drop, '/demo/product-black.svg', 'A dark graphic tee with restrained front artwork and an urban editorial mood.', ['Black', 'Cream']],
+                ['Studio Type Tee', 'studio-type-tee', 3295, $tees, $essentials, '/demo/product-cream.svg', 'An understated typography T-shirt for everyday layering.', ['Cream', 'Black']],
+                ['RA Monogram Hoodie', 'ra-monogram-hoodie', 6495, $hoodies, $drop, '/demo/product-rose.svg', 'A heavyweight-feel demo hoodie presentation featuring the RA monogram direction.', ['Burgundy', 'Black']],
+                ['Quiet Signal Hoodie', 'quiet-signal-hoodie', 6995, $hoodies, $essentials, '/demo/product-gold.svg', 'A premium-positioned hoodie concept with a minimal graphic signal.', ['Black', 'Cream']],
+                ['Archive 01 Hoodie', 'archive-01-hoodie', 6795, $hoodies, $essentials, '/demo/product-editorial.svg', 'A neutral hoodie concept used to demonstrate low-stock and sold-out variants.', ['Cream', 'Burgundy']],
+            ];
+            foreach ($hasOfficialCatalog ? [] : $products as $pi => $d) {
+                [$name,$slug,$price,$cat,$col,$image,$desc,$colors] = $d;
+                $p = Product::updateOrCreate(['slug' => $slug], ['name' => $name, 'description' => $desc, 'status' => ProductStatus::Active, 'base_price' => $price, 'seo_title' => $name.' — RAOZA', 'seo_description' => $desc, 'indexable' => true, 'published_at' => now()->subHours(12 - $pi)]);
+                $p->categories()->syncWithoutDetaching([$cat->id => ['position' => $pi]]);
+                $p->collections()->syncWithoutDetaching([$col->id => ['position' => $pi]]);
+                ProductImage::updateOrCreate(['product_id' => $p->id, 'path' => $image], ['variant_id' => null, 'alt_text' => $name.' local QA image', 'position' => 0, 'width' => 1200, 'height' => 1500]);
+                $size = ProductOption::updateOrCreate(['product_id' => $p->id, 'name' => 'Size'], ['position' => 1]);
+                $color = ProductOption::updateOrCreate(['product_id' => $p->id, 'name' => 'Color'], ['position' => 2]);
+                $sizes = [];
+                foreach (['S', 'M', 'L', 'XL'] as $i => $v) {
+                    $sizes[$v] = ProductOptionValue::updateOrCreate(['product_option_id' => $size->id, 'value' => $v], ['position' => $i + 1]);
+                }$colorVals = [];
+                foreach ($colors as $i => $v) {
+                    $colorVals[$v] = ProductOptionValue::updateOrCreate(['product_option_id' => $color->id, 'value' => $v], ['position' => $i + 1, 'metadata' => ['swatch' => match ($v) {
+                        'Cream' => '#FFF6E6','Burgundy' => '#330313','Black' => '#111111',default => '#602032'
+                    }]]);
+                }
+                $n = 0;
+                foreach ($sizes as $sv => $sval) {
+                    foreach ($colorVals as $cv => $cval) {
+                        $ids = [$sval->id, $cval->id];
+                        $sku = 'RZ-'.strtoupper(substr(preg_replace('/[^a-z0-9]/i', '', $slug), 0, 6)).'-'.$sv.'-'.strtoupper(substr($cv, 0, 3));
+                        $v = ProductVariant::updateOrCreate(['sku' => $sku], ['product_id' => $p->id, 'price_override' => null, 'status' => VariantStatus::Active, 'option_signature' => VariantSignature::fromOptionValueIds($ids)]);
+                        $v->optionValues()->sync($ids);
+                        $qty = ($pi === 5 && $sv === 'XL') ? 0 : (($pi === 5 && $sv === 'L') ? 2 : 8 + (($pi + $n) % 7));
+                        $inv = Inventory::firstOrCreate(['variant_id' => $v->id], ['quantity_on_hand' => $qty, 'quantity_reserved' => 0]);
+                        InventoryMovement::firstOrCreate(['variant_id' => $v->id, 'reference_type' => 'local_qa_seed', 'reference_id' => 'initial'], ['type' => InventoryMovementType::StockReceived, 'quantity' => $inv->quantity_on_hand, 'note' => 'Local QA opening stock', 'created_at' => now()]);
+                        $n++;
+                    }
+                }
+            }
+            ShippingMethod::updateOrCreate(['code' => 'nl-standard'], ['name' => 'NL Standard Delivery', 'provider' => 'demo', 'price' => 495, 'currency' => 'EUR', 'active' => true, 'position' => 1, 'configuration' => ['description' => 'Demo rate — replace with your live carrier rate before production.']]);
+            ShippingMethod::updateOrCreate(['code' => 'nl-free'], ['name' => 'Demo Free Delivery', 'provider' => 'demo', 'price' => 0, 'currency' => 'EUR', 'active' => true, 'position' => 2, 'configuration' => ['description' => 'Testing option for reviewing zero-cost shipping.']]);
+            Discount::updateOrCreate(['code' => 'WELCOME10'], ['name' => 'Demo welcome 10%', 'type' => 'percentage', 'value' => 10, 'minimum_order_amount' => 3000, 'usage_limit' => 100, 'per_customer_limit' => 2, 'active' => true]);
+            Discount::updateOrCreate(['code' => 'RAOZA5'], ['name' => 'Demo €5 discount', 'type' => 'fixed', 'value' => 500, 'minimum_order_amount' => 5000, 'usage_limit' => 100, 'per_customer_limit' => 2, 'active' => true]);
+            $pages = [
+                ['about', 'About RAOZA', 'about', 'RAOZA is a design-led printed apparel label being built in the Netherlands.', 'This local demo content is intentionally replaceable before launch.'],
+                ['faq', 'FAQ', 'faq', 'Questions about the RAOZA demo store.', 'Use this page to review how structured informational content appears. Replace answers with approved customer-service information before launch.'],
+                ['shipping', 'Shipping & Delivery', 'shipping', 'Demo shipping information.', 'The local environment includes example Dutch shipping methods so checkout can be tested end to end. Live carrier, prices and delivery estimates must be approved before production.'],
+                ['returns', 'Returns & Refunds', 'returns', 'Demo returns information.', 'This is placeholder operational content, not final legal advice. Replace it with the approved Netherlands/EU returns policy before launch.'],
+                ['privacy', 'Privacy Policy', 'privacy', 'Demo privacy page.', 'Replace this page with the final privacy notice that accurately describes the production processors, analytics, retention and customer rights.'],
+                ['terms', 'Terms & Conditions', 'terms', 'Demo terms page.', 'Replace with approved terms and business identity details before accepting real customer orders.'],
+            ];
+            foreach ($pages as [$key,$title,$slug,$intro,$body]) {
+                ContentPage::updateOrCreate(['key' => $key], ['title' => $title, 'slug' => $slug, 'status' => ContentStatus::Published, 'content' => ['intro' => $intro, 'sections' => [['heading' => 'Local review copy', 'body' => $body]]], 'seo_title' => $title.' — RAOZA', 'seo_description' => $intro, 'indexable' => true, 'published_at' => now()->subDay()]);
+            }
+            SiteContent::updateOrCreate(['key' => 'demo_notice'], ['value' => ['enabled' => true, 'text' => 'Local demo data — replace products, policies, shipping and credentials before production.']]);
+        });
+        $this->call(StorefrontContentSeeder::class);
+        $this->call(OfficialCatalogSeeder::class);
+        $this->command?->info('RAOZA demo seeded. Admin: admin@raoza.test / RaozaDemo!2026');
+    }
 }

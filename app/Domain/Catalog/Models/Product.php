@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 class Product extends Model
 {
-    protected $fillable = ['name','slug','description','fit_notes','product_details','care_instructions','status','base_price','seo_title','seo_description','canonical_url','og_image','indexable','published_at'];
-    protected function casts(): array { return ['status'=>ProductStatus::class,'base_price'=>'integer','indexable'=>'boolean','published_at'=>'immutable_datetime']; }
+    protected $fillable = ['name','slug','description','short_description','fit_notes','product_details','care_instructions','status','position','base_price','seo_title','seo_description','canonical_url','og_image','indexable','published_at'];
+    protected function casts(): array { return ['status'=>ProductStatus::class,'position'=>'integer','base_price'=>'integer','indexable'=>'boolean','published_at'=>'immutable_datetime']; }
     public function options(): HasMany { return $this->hasMany(ProductOption::class)->orderBy('position'); }
     public function variants(): HasMany { return $this->hasMany(ProductVariant::class); }
     public function images(): HasMany { return $this->hasMany(ProductImage::class)->orderBy('position'); }

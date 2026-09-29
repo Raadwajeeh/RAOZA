@@ -9,7 +9,7 @@ type OptionValue={id:number;value:string;metadata?:unknown};
 type Option={id:number;name:string;values:OptionValue[]};
 type Variant={id:number;sku:string;price:number;availableQuantity:number;available:boolean;optionValueIds:number[];options:Record<string,string>;images:Image[]};
 type Taxonomy={name:string;slug:string}|null;
-type Product={id:number;name:string;slug:string;description:string|null;fitNotes:string|null;productDetails:string|null;careInstructions:string|null;seoTitle:string|null;seoDescription:string|null;basePrice:number;images:Image[];options:Option[];variants:Variant[];category:Taxonomy;collection:Taxonomy};
+type Product={id:number;name:string;slug:string;description:string|null;shortDescription:string|null;position:number;fitNotes:string|null;productDetails:string|null;careInstructions:string|null;seoTitle:string|null;seoDescription:string|null;basePrice:number;images:Image[];options:Option[];variants:Variant[];category:Taxonomy;collection:Taxonomy};
 
 export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
     const [selected,setSelected]=useState<Record<number,number>>({});
@@ -80,12 +80,13 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
                             {renderImage(image,true)}
                         </button>)}
                     </div>}
-                    <p className="raoza-orbit-caption">RAOZA / EDIT {String(product.id).padStart(2,'0')}</p>
+                    <p className="raoza-orbit-caption">RAOZA / EDIT {String(product.position).padStart(2,'0')}</p>
                 </section>
 
                 <section className="raoza-product-info">
                     <nav aria-label="Breadcrumb" className="raoza-product-breadcrumb"><Link href="/">Home</Link> <span>/</span> <Link href="/shop">Shop</Link>{product.category&&<> <span>/</span> <Link href={`/categories/${product.category.slug}`}>{product.category.name}</Link></>} <span>/</span> <span aria-current="page">{product.name}</span></nav>
                     <h1 className="raoza-product-title">{product.name}</h1>
+                    {product.shortDescription&&<p className="mt-4 max-w-xl text-sm leading-6 text-raoza-black/65">{product.shortDescription}</p>}
                     <p className="raoza-product-price"><Money amount={variant?.price??product.basePrice}/></p>
 
                     <div className="raoza-product-options">{product.options.map(option=><fieldset key={option.id} className="raoza-product-option"><legend><span>{option.name}</span><span>{option.values.find(v=>v.id===selected[option.id])?.value||'Select'}</span></legend><div className="raoza-option-values">{option.values.map(value=>{const possible=valuePossible(option.id,value.id);const active=selected[option.id]===value.id;return <button type="button" key={value.id} disabled={!possible&&Object.keys(selected).length===0} aria-pressed={active} onClick={()=>choose(option.id,value.id)} className={`${active?'is-active':''} ${!possible?'is-conflict':''}`}>{value.value}</button>})}</div></fieldset>)}</div>
@@ -101,9 +102,9 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
                     <div className="raoza-product-meta"><div><span>Availability</span><strong className={variant?.available&&variant.availableQuantity<=3?'is-low':''}>{stockMessage}</strong></div><div><span>SKU</span><strong>{variant?.sku||'—'}</strong></div></div>
 
                     {product.description&&<details className="raoza-product-details" open><summary>Description <span>+</span></summary><p>{product.description}</p></details>}
-                    <details className="raoza-product-details"><summary>Size & fit <span>+</span></summary><p>{product.fitNotes||'Choose your usual size from the available options. Check the size guide and product-specific measurements when provided.'}</p><Link href="/pages/size-guide" className="mt-3 inline-block text-xs underline underline-offset-4">View size guide</Link></details>
-                    <details className="raoza-product-details"><summary>Product details <span>+</span></summary><p>{product.productDetails||'A RAOZA graphic is applied to a ready-made garment using heat-transfer production. Product-specific construction and composition appear here when available.'}</p></details>
-                    <details className="raoza-product-details"><summary>Care <span>+</span></summary><p>{product.careInstructions||'Follow the garment care label. Wash and iron printed areas with care to help preserve the artwork.'}</p></details>
+                    {product.fitNotes&&<details className="raoza-product-details"><summary>Size & fit <span>+</span></summary><p>{product.fitNotes}</p><Link href="/pages/size-guide" className="mt-3 inline-block text-xs underline underline-offset-4">View size guide</Link></details>}
+                    {product.productDetails&&<details className="raoza-product-details"><summary>Product details <span>+</span></summary><p className="whitespace-pre-line">{product.productDetails}</p></details>}
+                    {product.careInstructions&&<details className="raoza-product-details"><summary>Care <span>+</span></summary><p>{product.careInstructions}</p></details>}
                     <details className="raoza-product-details"><summary>Delivery & returns <span>+</span></summary><p>Delivery options and the authoritative total are shown at checkout. Return eligibility is assessed after your request and item inspection.</p><div className="mt-3 flex gap-4 text-xs"><Link href="/pages/shipping" className="underline underline-offset-4">Shipping</Link><Link href="/pages/returns" className="underline underline-offset-4">Returns</Link></div></details>
                 </section>
             </div>
