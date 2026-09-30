@@ -14,24 +14,32 @@ const related = [
     { href: '/pages/returns', label: 'Returns' },
     { href: '/pages/contact', label: 'Contact' },
 ];
+const legalKeys=['privacy','cookies','terms'];
+const sectionId=(heading:string,index:number)=>`section-${index+1}-${heading.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')}`;
 
 export default function ContentPage({ page, shippingMethods = [], seo }: { page: Page; shippingMethods?: ShippingMethod[]; seo: Seo }) {
     const store = usePage<{ store: Store }>().props.store;
     const content = page.content ?? {};
+    const sections=Array.isArray(content.sections)?content.sections:[];
+    const isAbout=page.key==='about';
+    const isLegal=legalKeys.includes(page.key);
 
-    return <StorefrontLayout><SeoHead seo={seo}/><main className="mx-auto max-w-5xl px-5 py-14 md:px-10 md:py-20">
-        <nav aria-label="Breadcrumb" className="flex gap-2 text-[9px] font-semibold uppercase tracking-[.18em] text-raoza-black/50"><Link href="/">Home</Link><span aria-hidden="true">/</span><span aria-current="page">{page.title}</span></nav>
-        <header className="mt-7 border-b border-raoza-primary/20 pb-10"><p className="text-[10px] uppercase tracking-[.2em] text-raoza-secondary">RAOZA / Customer information</p><h1 className="mt-4 max-w-4xl font-display text-5xl leading-[.92] text-raoza-primary md:text-7xl">{page.title}</h1>{content.intro&&<p className="mt-8 max-w-3xl text-lg leading-8 text-raoza-black/75">{content.intro}</p>}</header>
+    return <StorefrontLayout><SeoHead seo={seo}/><main className={`raoza-content-page${isAbout?' is-about':''}${isLegal?' is-legal':''}`}>
+        {isAbout?<header className="raoza-about-hero">
+            <div className="raoza-about-hero-media"><img src="/campaign/editorial-wide.webp" alt="RAOZA apparel photographed in an urban editorial setting" width="1800" height="1200" fetchPriority="high"/><span>RAOZA / Netherlands</span></div>
+            <div className="raoza-about-hero-copy"><nav aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><span aria-current="page">About</span></nav><p className="raoza-eyebrow">Independent point of view / 01</p><h1>{page.title}</h1>{content.intro&&<p>{content.intro}</p>}<Link href="/shop" className="raoza-button raoza-button-light">Shop the current edit <span aria-hidden="true">→</span></Link></div>
+        </header>:<header className="raoza-content-hero"><div className="raoza-content-wrap"><nav aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><span aria-current="page">{page.title}</span></nav><p className="raoza-eyebrow">{isLegal?'RAOZA / Legal':'RAOZA / Customer care'}</p><h1>{page.title}</h1>{content.intro&&<p>{content.intro}</p>}</div></header>}
 
-        <div className="grid gap-12 py-4 lg:grid-cols-[1fr_18rem] lg:gap-20">
-            <div>{Array.isArray(content.sections)&&content.sections.map((section,index)=><section key={`${section.heading}-${index}`} className="border-b border-raoza-primary/15 py-9 last:border-b-0"><p className="text-[9px] uppercase tracking-[.18em] text-raoza-secondary">{String(index+1).padStart(2,'0')}</p><h2 className="mt-2 font-display text-3xl text-raoza-primary">{section.heading}</h2><p className="mt-4 whitespace-pre-line text-sm leading-7 text-raoza-black/70">{section.body}</p></section>)}
-                {page.key==='shipping'&&shippingMethods.length>0&&<section className="mt-8 border border-raoza-primary/20 p-5 sm:p-7"><h2 className="font-display text-3xl text-raoza-primary">Current checkout options</h2><p className="mt-2 text-sm leading-6 text-raoza-black/60">Checkout remains authoritative for availability and price.</p><div className="mt-5 divide-y divide-raoza-primary/15">{shippingMethods.map(method=><div key={method.id} className="flex items-start justify-between gap-6 py-4"><div><h3 className="text-sm font-semibold">{method.name}</h3>{method.description&&<p className="mt-1 text-xs leading-5 text-raoza-black/55">{method.description}</p>}</div><strong className="shrink-0 text-sm"><Money amount={method.price}/></strong></div>)}</div></section>}
-            </div>
+        <div className="raoza-content-wrap raoza-content-layout">
+            <article className="raoza-content-sections">{sections.map((section,index)=><section id={sectionId(section.heading,index)} key={`${section.heading}-${index}`}><p>{String(index+1).padStart(2,'0')}</p><h2>{section.heading}</h2><div>{section.body}</div></section>)}
+                {page.key==='shipping'&&shippingMethods.length>0&&<section className="raoza-shipping-options"><p>Live checkout data</p><h2>Current checkout options</h2><div>{shippingMethods.map(method=><div key={method.id}><div><h3>{method.name}</h3>{method.description&&<p>{method.description}</p>}</div><strong><Money amount={method.price}/></strong></div>)}</div><small>Checkout remains authoritative for availability and price.</small></section>}
+            </article>
 
-            <aside className="h-fit border-l border-raoza-primary/20 pl-6 lg:sticky lg:top-32"><p className="text-[9px] uppercase tracking-[.18em] text-raoza-secondary">Customer care</p><p className="mt-4 text-sm leading-6 text-raoza-black/65">{store.customer_service}</p><a href={`mailto:${store.support_email}`} className="mt-5 inline-block break-all text-sm font-semibold underline underline-offset-4">{store.support_email}</a>{store.contact_phone&&<a href={`tel:${store.contact_phone}`} className="mt-2 block text-sm underline underline-offset-4">{store.contact_phone}</a>}
-                <nav aria-label="Related customer information" className="mt-8 flex flex-col gap-3 border-t border-raoza-primary/15 pt-6 text-sm">{related.filter(item=>item.href!==`/pages/${page.slug}`).map(item=><Link key={item.href} href={item.href} className="underline decoration-raoza-primary/30 underline-offset-4 hover:decoration-raoza-primary">{item.label}</Link>)}</nav>
-                {['contact','privacy','terms'].includes(page.key)&&<div className="mt-8 border-t border-raoza-primary/15 pt-6 text-xs leading-6 text-raoza-black/55"><strong className="block text-raoza-black">{store.company_name}</strong>{store.city&&<span className="block">{store.city}, {store.country}</span>}{store.registration_number&&<span className="block">Registration: {store.registration_number}</span>}{store.vat_number&&<span className="block">VAT: {store.vat_number}</span>}</div>}
+            <aside className="raoza-content-aside">
+                {isLegal&&sections.length>0?<><p>On this page</p><nav aria-label="Page sections">{sections.map((section,index)=><a key={sectionId(section.heading,index)} href={`#${sectionId(section.heading,index)}`}>{String(index+1).padStart(2,'0')} — {section.heading}</a>)}</nav></>:<><p>Customer care</p><div>{store.customer_service}</div><a href={`mailto:${store.support_email}`}>{store.support_email}</a>{store.contact_phone&&<a href={`tel:${store.contact_phone}`}>{store.contact_phone}</a>}<nav aria-label="Related customer information">{related.filter(item=>item.href!==`/pages/${page.slug}`).map(item=><Link key={item.href} href={item.href}>{item.label}</Link>)}</nav></>}
+                {['contact','privacy','terms'].includes(page.key)&&<div className="raoza-company-details"><strong>{store.company_name}</strong>{store.city&&<span>{store.city}, {store.country}</span>}{store.registration_number&&<span>Registration: {store.registration_number}</span>}{store.vat_number&&<span>VAT: {store.vat_number}</span>}</div>}
             </aside>
         </div>
+        {isAbout&&<section className="raoza-about-end"><p>RAOZA / Current expression</p><h2>Graphic identity,<br/><em>worn every day.</em></h2><Link href="/shop" className="raoza-button raoza-button-light">Explore all apparel <span aria-hidden="true">→</span></Link></section>}
     </main></StorefrontLayout>;
 }

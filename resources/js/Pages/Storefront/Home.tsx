@@ -76,7 +76,10 @@ export default function Home({ featuredProducts, collections, seo }: { featuredP
                     <p className="raoza-hero-foot">T-shirts / Hoodies <span>RAOZA — Netherlands</span></p>
                 </div>
                 <div className="raoza-home-hero-image">
-                    <EditorialImage source={image(editorial, 4, 3)} eager className="h-full w-full object-cover" />
+                    <picture>
+                        <source media="(max-width: 767px)" srcSet="/campaign/home-hero-mobile.webp" />
+                        <img src="/campaign/home-hero-desktop.webp" alt="Two models wearing RAOZA cream and burgundy apparel" width="2560" height="1440" loading="eager" fetchPriority="high" className="h-full w-full object-cover" />
+                    </picture>
                     {burgundy && <Link href={`/products/${burgundy.slug}`} className="raoza-hero-orbit" aria-label={`View ${burgundy.name}`}><EditorialImage source={image(burgundy, 2)} className="h-full w-full object-cover" /><span>{number(burgundy.position)}</span></Link>}
                     <div className="raoza-hero-image-label"><span>Editorial Tee / 02</span><span>Current edit</span></div>
                 </div>
@@ -105,16 +108,16 @@ export default function Home({ featuredProducts, collections, seo }: { featuredP
             {mark && structured && <section className="raoza-categories" aria-labelledby="category-heading">
                 <header className="raoza-container raoza-section-head"><div><p className="raoza-eyebrow">Shop by category / 03</p><h2 id="category-heading">Two forms.<br /><em>One language.</em></h2></div></header>
                 <div className="raoza-category-grid">
-                    <Link href="/categories/t-shirts" className="raoza-category group"><EditorialImage source={image(mark, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">01 / 03</span><span className="raoza-category-title">T-Shirts <i>Explore ↗</i></span></Link>
-                    <Link href="/categories/hoodies" className="raoza-category group"><EditorialImage source={image(structured, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">02 / 03</span><span className="raoza-category-title">Hoodies <i>Explore ↗</i></span></Link>
+                    <Link href="/categories/t-shirts" className="raoza-category group"><img src="/campaign/tshirts-campaign.webp" alt="RAOZA T-shirts campaign" width="1200" height="1500" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">01 / 03</span><span className="raoza-category-title">T-Shirts <i>Explore ↗</i></span></Link>
+                    <Link href="/categories/hoodies" className="raoza-category group"><img src="/campaign/hoodies-campaign.webp" alt="RAOZA hoodies campaign" width="1200" height="1500" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">02 / 03</span><span className="raoza-category-title">Hoodies <i>Explore ↗</i></span></Link>
                 </div>
             </section>}
 
             {drop && core && burgundy && signature && <section id="collections" className="raoza-collections raoza-container" aria-labelledby="collections-heading">
                 <header className="raoza-section-head"><div><p className="raoza-eyebrow">Collection stories / 04</p><h2 id="collections-heading">Expression / <em>Essentials.</em></h2></div></header>
                 <div className="raoza-collection-grid">
-                    <Link href={`/collections/${drop.slug}`} className="raoza-collection-card raoza-collection-drop group"><div className="raoza-collection-media"><EditorialImage source={image(burgundy, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>01 / Expressive</span><h3>{drop.name}</h3><p>{drop.description}</p><i>Explore collection ↗</i></div></Link>
-                    <Link href={`/collections/${core.slug}`} className="raoza-collection-card raoza-collection-core group"><div className="raoza-collection-media"><EditorialImage source={image(signature, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>02 / Brand-led</span><h3>{core.name}</h3><p>{core.description}</p><i>Explore collection ↗</i></div></Link>
+                    <Link href={`/collections/${drop.slug}`} className="raoza-collection-card raoza-collection-drop group"><div className="raoza-collection-media"><img src="/campaign/drop01-campaign.webp" alt="Drop 01 campaign" width="1200" height="1500" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>01 / Expressive</span><h3>{drop.name}</h3><p>{drop.description}</p><i>Explore collection ↗</i></div></Link>
+                    <Link href={`/collections/${core.slug}`} className="raoza-collection-card raoza-collection-core group"><div className="raoza-collection-media"><img src="/campaign/core-essentials-campaign.webp" alt="Core Essentials campaign" width="1200" height="1500" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>02 / Brand-led</span><h3>{core.name}</h3><p>{core.description}</p><i>Explore collection ↗</i></div></Link>
                 </div>
             </section>}
 

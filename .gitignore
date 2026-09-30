@@ -21,6 +21,8 @@ yarn-error.log
 /output/playwright
 /LOGO/
 /Projecten/
+/7 photos/
+/mix/
 
 /storage/framework/views/*
 !/storage/framework/views/.gitignore
