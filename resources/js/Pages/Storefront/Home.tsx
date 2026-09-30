@@ -80,7 +80,6 @@ export default function Home({ featuredProducts, collections, seo }: { featuredP
                         <source media="(max-width: 767px)" srcSet="/campaign/home-hero-mobile.webp" />
                         <img src="/campaign/home-hero-desktop.webp" alt="Two models wearing RAOZA cream and burgundy apparel" width="2560" height="1440" loading="eager" fetchPriority="high" className="h-full w-full object-cover" />
                     </picture>
-                    {burgundy && <Link href={`/products/${burgundy.slug}`} className="raoza-hero-orbit" aria-label={`View ${burgundy.name}`}><EditorialImage source={image(burgundy, 2)} className="h-full w-full object-cover" /><span>{number(burgundy.position)}</span></Link>}
                     <div className="raoza-hero-image-label"><span>Editorial Tee / 02</span><span>Current edit</span></div>
                 </div>
             </section>

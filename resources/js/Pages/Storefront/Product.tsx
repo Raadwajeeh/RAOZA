@@ -35,6 +35,11 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
         const ids=Object.values(candidate);
         return product.variants.some(v=>ids.every(id=>v.optionValueIds.includes(id)));
     };
+    const valueAvailable=(optionId:number,valueId:number)=>{
+        const candidate={...selected,[optionId]:valueId};
+        const ids=Object.values(candidate);
+        return product.variants.some(v=>v.available&&ids.every(id=>v.optionValueIds.includes(id)));
+    };
 
     const choose=(optionId:number,valueId:number)=>{
         const candidate={...selected,[optionId]:valueId};
@@ -59,9 +64,9 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
         ? variant.availableQuantity<=3?`Only ${variant.availableQuantity} left`:'In stock'
         : variant?'Out of stock':'Choose a variant';
 
-    const renderImage=(image:Image|undefined, decorative=false)=>(
+    const renderImage=(image:Image|undefined, decorative=false, priority=false)=>(
         image?.url
-            ? <img src={image.url} alt={decorative?'':image.alt} className="h-full w-full object-cover"/>
+            ? <img src={image.url} alt={decorative?'':image.alt} loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} decoding="async" className="h-full w-full object-cover"/>
             : <div className="flex h-full items-center justify-center font-display text-5xl text-raoza-primary/20">RAOZA</div>
     );
 
@@ -72,7 +77,7 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
                     <div className="raoza-orbit-line raoza-orbit-line-a" aria-hidden="true"/>
                     <div className="raoza-orbit-line raoza-orbit-line-b" aria-hidden="true"/>
                     <div className="raoza-orbit-main">
-                        {renderImage(images[activeImage])}
+                        {renderImage(images[activeImage],false,true)}
                         <span className="raoza-orbit-index" aria-hidden="true">{String(activeImage+1).padStart(2,'0')}</span>
                     </div>
                     {images.length>1&&<div className="raoza-orbit-thumbs" aria-label="Product images">
@@ -86,17 +91,18 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
                 <section className="raoza-product-info">
                     <nav aria-label="Breadcrumb" className="raoza-product-breadcrumb"><Link href="/">Home</Link> <span>/</span> <Link href="/shop">Shop</Link>{product.category&&<> <span>/</span> <Link href={`/categories/${product.category.slug}`}>{product.category.name}</Link></>} <span>/</span> <span aria-current="page">{product.name}</span></nav>
                     <h1 className="raoza-product-title">{product.name}</h1>
-                    {product.shortDescription&&<p className="mt-4 max-w-xl text-sm leading-6 text-raoza-black/65">{product.shortDescription}</p>}
                     <p className="raoza-product-price"><Money amount={variant?.price??product.basePrice}/></p>
+                    {product.shortDescription&&<p className="raoza-product-intro">{product.shortDescription}</p>}
+                    {product.slug==='raoza-mark-tee'&&<p className="raoza-product-colour-note"><strong>Campaign colour note</strong><span>The gallery shows the RAOZA campaign colour direction. Currently purchasable colours are listed below.</span></p>}
 
-                    <div className="raoza-product-options">{product.options.map(option=><fieldset key={option.id} className="raoza-product-option"><legend><span>{option.name}</span><span>{option.values.find(v=>v.id===selected[option.id])?.value||'Select'}</span></legend><div className="raoza-option-values">{option.values.map(value=>{const possible=valuePossible(option.id,value.id);const active=selected[option.id]===value.id;return <button type="button" key={value.id} disabled={!possible&&Object.keys(selected).length===0} aria-pressed={active} onClick={()=>choose(option.id,value.id)} className={`${active?'is-active':''} ${!possible?'is-conflict':''}`}>{value.value}</button>})}</div></fieldset>)}</div>
+                    <div className="raoza-product-options">{product.options.map(option=><fieldset key={option.id} className="raoza-product-option"><legend><span>{option.name}</span><span>{option.values.find(v=>v.id===selected[option.id])?.value||'Select'}</span></legend><div className="raoza-option-values">{option.values.map(value=>{const possible=valuePossible(option.id,value.id);const available=valueAvailable(option.id,value.id);const active=selected[option.id]===value.id;const disabled=!possible||!available;return <button type="button" key={value.id} disabled={disabled} aria-pressed={active} title={disabled?'Unavailable for the current selection':undefined} onClick={()=>choose(option.id,value.id)} className={`${active?'is-active':''} ${disabled?'is-unavailable':''}`}>{value.value}{disabled&&<span className="sr-only"> — unavailable</span>}</button>})}</div></fieldset>)}</div>
 
                     <div className="raoza-purchase-panel">
                         {complete&&!variant&&<p className="raoza-product-alert" role="alert">This combination is not available.</p>}
                         {variant&&!variant.available&&<p className="raoza-product-alert" role="alert">This variant is currently out of stock.</p>}
                         {variant?.available&&<div className="raoza-quantity-row"><label htmlFor="product-quantity">Quantity</label><select id="product-quantity" value={quantity} onChange={e=>setQuantity(Number(e.target.value))}>{Array.from({length:maxQuantity},(_,i)=>i+1).map(q=><option key={q} value={q}>{q}</option>)}</select></div>}
                         <button disabled={!complete||!variant?.available||adding} onClick={()=>{if(!variant)return;setAdding(true);router.post('/cart/items',{variant_id:variant.id,quantity},{preserveScroll:true,onFinish:()=>setAdding(false)})}} className="raoza-button raoza-product-add">{adding?'Adding…':!complete?'Select options':variant?.available?'Add to bag':'Out of stock'}</button>
-                        {page.props.errors?.quantity&&<p className="raoza-product-alert" role="alert">{page.props.errors.quantity}</p>}{page.props.errors?.variant&&<p className="raoza-product-alert" role="alert">{page.props.errors.variant}</p>}{page.props.flash?.success&&<p className="raoza-product-success" role="status">{page.props.flash.success}</p>}
+                        {page.props.errors?.quantity&&<p className="raoza-product-alert" role="alert">{page.props.errors.quantity}</p>}{page.props.errors?.variant&&<p className="raoza-product-alert" role="alert">{page.props.errors.variant}</p>}{page.props.flash?.success&&<div className="raoza-product-success" role="status"><span>{page.props.flash.success}</span><Link href="/cart">View bag <span aria-hidden="true">→</span></Link></div>}
                     </div>
 
                     <div className="raoza-product-meta"><div><span>Availability</span><strong className={variant?.available&&variant.availableQuantity<=3?'is-low':''}>{stockMessage}</strong></div><div><span>SKU</span><strong>{variant?.sku||'—'}</strong></div></div>
