@@ -24,15 +24,28 @@ function EditorialImage({ source, className = '', eager = false }: { source?: Im
     return <img src={source.url} alt={source.alt} width={source.width ?? undefined} height={source.height ?? undefined} loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'auto'} className={className} />;
 }
 
-function ProductFeature({ product, index, className = '' }: { product: HomeProduct; index: number; className?: string }) {
-    return <article className={`group ${className}`}>
-        <Link href={`/products/${product.slug}`} className="block overflow-hidden bg-[#eadfce]">
-            <EditorialImage source={image(product, 0)} className="aspect-[4/5] h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]" />
+function CampaignPanel({ product, source, index }: { product: HomeProduct; source?: ImageData; index: number }) {
+    return <article className="raoza-campaign-panel group">
+        <Link href={`/products/${product.slug}`} className="raoza-campaign-media">
+            <EditorialImage source={source} className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]" />
+            <span className="raoza-campaign-index">{String(index + 1).padStart(2, '0')} / 03</span>
         </Link>
-        <div className="mt-4 grid grid-cols-[auto_1fr_auto] items-start gap-3 border-t border-raoza-primary/20 pt-3">
-            <span className="text-[10px] font-semibold tracking-[.18em] text-raoza-secondary">{number(product.position || index + 1)}</span>
-            <div><Link href={`/products/${product.slug}`} className="text-xs font-semibold leading-5 hover:underline hover:underline-offset-4 sm:text-sm">{product.name}</Link><p className="mt-1 text-[9px] uppercase tracking-[.15em] text-raoza-black/45">{product.category?.name ?? 'RAOZA Apparel'}</p></div>
-            <p className="text-xs font-semibold"><Money amount={product.price} /></p>
+        <div className="raoza-campaign-copy">
+            <div><p>{product.collection?.name ?? 'RAOZA edit'}</p><h3>{product.name}</h3></div>
+            <Link href={`/products/${product.slug}`} aria-label={`View ${product.name}`}>Discover <span aria-hidden="true">↗</span></Link>
+        </div>
+    </article>;
+}
+
+function ProductEdit({ product }: { product: HomeProduct }) {
+    return <article className="raoza-product-edit group">
+        <Link href={`/products/${product.slug}`} className="raoza-product-edit-media">
+            <EditorialImage source={image(product, 0)} className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]" />
+        </Link>
+        <div className="raoza-product-edit-copy">
+            <span>{number(product.position)}</span>
+            <div><Link href={`/products/${product.slug}`}>{product.name}</Link><p>{product.category?.name ?? 'RAOZA apparel'}</p></div>
+            <Money amount={product.price} />
         </div>
     </article>;
 }
@@ -46,64 +59,67 @@ export default function Home({ featuredProducts, collections, seo }: { featuredP
     const burgundy = findProduct(featuredProducts, 'raoza-deep-burgundy-hoodie');
     const drop = collections.find(collection => collection.slug === 'drop-01');
     const core = collections.find(collection => collection.slug === 'core-essentials');
-    const featured = [signature, editorial, essential, burgundy].filter((product): product is HomeProduct => Boolean(product));
+    const campaign = [essential, burgundy, structured].filter((product): product is HomeProduct => Boolean(product));
+    const productEdit = [signature, editorial, mark].filter((product): product is HomeProduct => Boolean(product));
 
     return <StorefrontLayout><SeoHead seo={seo} />
         <main className="overflow-hidden">
             <section className="raoza-home-hero" aria-labelledby="hero-heading">
                 <div className="raoza-home-hero-copy">
-                    <p className="raoza-hero-kicker"><span>RAOZA</span><span>Urban Editorial / 01—06</span></p>
-                    <div>
-                        <h1 id="hero-heading">A quiet form<br />of <em>attitude.</em></h1>
-                        <p className="raoza-hero-intro">Design-led printed apparel shaped by clean silhouettes, graphic identity and a controlled urban point of view.</p>
-                        <div className="raoza-hero-actions"><Link href="/shop" className="raoza-button raoza-button-light">Shop now</Link>{drop && <Link href={`/collections/${drop.slug}`} className="raoza-text-link raoza-text-link-light">Explore Drop 01 <span aria-hidden="true">↗</span></Link>}</div>
+                    <p className="raoza-hero-kicker"><span>RAOZA / Apparel</span><span>Urban Editorial / 01—06</span></p>
+                    <div className="raoza-hero-message">
+                        <p className="raoza-hero-edition">Drop 01 — Current expression</p>
+                        <h1 id="hero-heading">Form,<br /><em>in motion.</em></h1>
+                        <p className="raoza-hero-intro">Graphic identity and everyday apparel, composed through an urban editorial point of view.</p>
+                        <div className="raoza-hero-actions"><Link href="/shop" className="raoza-button raoza-button-light">Shop now <span aria-hidden="true">→</span></Link>{drop && <Link href={`/collections/${drop.slug}`} className="raoza-text-link raoza-text-link-light">View Drop 01 <span aria-hidden="true">↗</span></Link>}</div>
                     </div>
-                    <p className="raoza-hero-foot">T-shirts / Hoodies <span>Netherlands</span></p>
+                    <p className="raoza-hero-foot">T-shirts / Hoodies <span>RAOZA — Netherlands</span></p>
                 </div>
                 <div className="raoza-home-hero-image">
-                    <EditorialImage source={image(editorial, 4, 3)} eager className="h-full w-full object-cover object-[52%_35%]" />
+                    <EditorialImage source={image(editorial, 4, 3)} eager className="h-full w-full object-cover" />
                     {burgundy && <Link href={`/products/${burgundy.slug}`} className="raoza-hero-orbit" aria-label={`View ${burgundy.name}`}><EditorialImage source={image(burgundy, 2)} className="h-full w-full object-cover" /><span>{number(burgundy.position)}</span></Link>}
-                    <div className="raoza-hero-image-label"><span>Current edit</span><span>RAOZA / 2026</span></div>
+                    <div className="raoza-hero-image-label"><span>Editorial Tee / 02</span><span>Current edit</span></div>
                 </div>
             </section>
 
-            {drop && <section className="raoza-home-intro raoza-container" aria-labelledby="drop-heading">
-                <div><p className="raoza-eyebrow">Current collection</p><p className="raoza-section-number">01</p></div>
-                <div><h2 id="drop-heading">Drop 01.<br /><em>Graphic expression,</em><br />held in balance.</h2><p>{drop.description}</p><Link href={`/collections/${drop.slug}`} className="raoza-text-link">Discover the collection <span aria-hidden="true">↗</span></Link></div>
+            {campaign.length > 0 && <section className="raoza-campaign" aria-labelledby="campaign-heading">
+                <header className="raoza-campaign-head raoza-container"><div><p className="raoza-eyebrow">Campaign selection / 01</p><h2 id="campaign-heading">Three studies<br /><em>in silhouette.</em></h2></div>{drop && <Link href={`/collections/${drop.slug}`} className="raoza-text-link">Explore Drop 01 <span aria-hidden="true">→</span></Link>}</header>
+                <div className="raoza-campaign-grid">{campaign.map((product, index) => <CampaignPanel key={product.id} product={product} index={index} source={image(product, product.slug === 'raoza-deep-burgundy-hoodie' ? 3 : 4, 3)} />)}</div>
             </section>}
 
-            {featured.length > 0 && <section className="raoza-featured raoza-container" aria-labelledby="featured-heading">
-                <header className="raoza-section-head"><div><p className="raoza-eyebrow">The current edit</p><h2 id="featured-heading">Selected <em>pieces.</em></h2></div><Link href="/shop" className="raoza-text-link">View all six <span aria-hidden="true">→</span></Link></header>
-                <div className="raoza-featured-grid">{featured.map((product, index) => <ProductFeature key={product.id} product={product} index={index} className={index === 1 ? 'raoza-featured-high' : index === 2 ? 'raoza-featured-low' : ''} />)}</div>
+            {productEdit.length > 0 && <section className="raoza-current-edit" aria-labelledby="current-edit-heading">
+                <div className="raoza-current-edit-inner raoza-container">
+                    <header className="raoza-current-edit-head"><p className="raoza-eyebrow">Current product edit / T-shirts</p><h2 id="current-edit-heading">The graphic<br /><em>wardrobe.</em></h2><p>Three expressions of the RAOZA identity, moving from quiet signature detail to a stronger editorial graphic.</p><Link href="/categories/t-shirts" className="raoza-text-link">Shop T-shirts <span aria-hidden="true">→</span></Link></header>
+                    <div className="raoza-current-edit-products">{productEdit.map(product => <ProductEdit key={product.id} product={product} />)}</div>
+                    {signature && <Link href={`/products/${signature.slug}`} className="raoza-current-edit-campaign group" aria-label={`View ${signature.name}`}><EditorialImage source={image(signature, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" /><span>Core / 01</span><b>Quiet identity.<br />Everyday form.</b></Link>}
+                </div>
             </section>}
 
-            <section className="raoza-brand-moment" aria-labelledby="brand-moment-heading">
-                <div className="raoza-brand-type" aria-hidden="true">URBAN<br /><em>EDITORIAL</em></div>
-                <div className="raoza-brand-orbit"><EditorialImage source={image(mark, 3)} className="h-full w-full object-cover object-top" /></div>
-                <div className="raoza-brand-copy"><p className="raoza-eyebrow">The RAOZA position</p><h2 id="brand-moment-heading">Clarity in form.<br /><em>Identity in detail.</em></h2><p>A controlled wardrobe of printed pieces, considered graphics and confident everyday silhouettes.</p></div>
-            </section>
+            {essential && mark && <section className="raoza-brand-moment" aria-labelledby="brand-moment-heading">
+                <div className="raoza-brand-image"><EditorialImage source={image(essential, 4, 3)} className="h-full w-full object-cover" /></div>
+                <div className="raoza-brand-orbit"><EditorialImage source={image(mark, 5, 3)} className="h-full w-full object-cover" /></div>
+                <div className="raoza-brand-type" aria-hidden="true">URBAN / EDITORIAL</div>
+                <div className="raoza-brand-copy"><p className="raoza-eyebrow">Worn in context / 02</p><h2 id="brand-moment-heading">Clarity in form.<br /><em>Identity in detail.</em></h2><Link href={`/products/${essential.slug}`} className="raoza-text-link raoza-text-link-light">View the Essential Hoodie <span aria-hidden="true">↗</span></Link></div>
+            </section>}
 
             {mark && structured && <section className="raoza-categories" aria-labelledby="category-heading">
-                <header className="raoza-container raoza-section-head"><div><p className="raoza-eyebrow">Shop by category</p><h2 id="category-heading">Two forms.<br /><em>One language.</em></h2></div></header>
+                <header className="raoza-container raoza-section-head"><div><p className="raoza-eyebrow">Shop by category / 03</p><h2 id="category-heading">Two forms.<br /><em>One language.</em></h2></div></header>
                 <div className="raoza-category-grid">
-                    <Link href="/categories/t-shirts" className="raoza-category raoza-category-light"><EditorialImage source={image(mark, 4, 3)} className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">01 / 03</span><span className="raoza-category-title">T-Shirts <i>Explore ↗</i></span></Link>
-                    <Link href="/categories/hoodies" className="raoza-category raoza-category-dark"><EditorialImage source={image(structured, 4, 3)} className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">02 / 03</span><span className="raoza-category-title">Hoodies <i>Explore ↗</i></span></Link>
+                    <Link href="/categories/t-shirts" className="raoza-category group"><EditorialImage source={image(mark, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">01 / 03</span><span className="raoza-category-title">T-Shirts <i>Explore ↗</i></span></Link>
+                    <Link href="/categories/hoodies" className="raoza-category group"><EditorialImage source={image(structured, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /><span className="raoza-category-count">02 / 03</span><span className="raoza-category-title">Hoodies <i>Explore ↗</i></span></Link>
                 </div>
             </section>}
 
-            {drop && core && editorial && signature && <section className="raoza-collections raoza-container" aria-labelledby="collections-heading">
-                <header className="raoza-section-head"><div><p className="raoza-eyebrow">Collection stories</p><h2 id="collections-heading">Expression / <em>Essentials.</em></h2></div></header>
+            {drop && core && burgundy && signature && <section id="collections" className="raoza-collections raoza-container" aria-labelledby="collections-heading">
+                <header className="raoza-section-head"><div><p className="raoza-eyebrow">Collection stories / 04</p><h2 id="collections-heading">Expression / <em>Essentials.</em></h2></div></header>
                 <div className="raoza-collection-grid">
-                    <Link href={`/collections/${drop.slug}`} className="raoza-collection-card raoza-collection-drop"><div className="raoza-collection-media"><EditorialImage source={image(burgundy, 3)} className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>01 / Expressive</span><h3>{drop.name}</h3><p>{drop.description}</p><i>Explore collection ↗</i></div></Link>
-                    <Link href={`/collections/${core.slug}`} className="raoza-collection-card raoza-collection-core"><div className="raoza-collection-media"><EditorialImage source={image(signature, 4, 3)} className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>02 / Brand-led</span><h3>{core.name}</h3><p>{core.description}</p><i>Explore collection ↗</i></div></Link>
+                    <Link href={`/collections/${drop.slug}`} className="raoza-collection-card raoza-collection-drop group"><div className="raoza-collection-media"><EditorialImage source={image(burgundy, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>01 / Expressive</span><h3>{drop.name}</h3><p>{drop.description}</p><i>Explore collection ↗</i></div></Link>
+                    <Link href={`/collections/${core.slug}`} className="raoza-collection-card raoza-collection-core group"><div className="raoza-collection-media"><EditorialImage source={image(signature, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.025]" /></div><div className="raoza-collection-copy"><span>02 / Brand-led</span><h3>{core.name}</h3><p>{core.description}</p><i>Explore collection ↗</i></div></Link>
                 </div>
             </section>}
 
-            <section className="raoza-about-preview">
-                <div className="raoza-container"><p className="raoza-eyebrow">About RAOZA</p><p className="raoza-about-statement">A design-led printed apparel brand with an <em>Urban Editorial</em> point of view.</p><Link href="/pages/about" className="raoza-text-link">Read our perspective <span aria-hidden="true">→</span></Link></div>
-            </section>
-
-            <section className="raoza-final-cta" aria-label="Shop RAOZA"><p>01—06 / Current collection</p><h2>Find your<br /><em>point of view.</em></h2><Link href="/shop" className="raoza-button raoza-button-light">Shop the collection</Link></section>
+            <section className="raoza-about-preview"><div className="raoza-container"><p className="raoza-eyebrow">RAOZA / Brand statement</p><p className="raoza-about-statement">A design-led apparel label where <em>graphic identity</em> meets everyday form.</p><Link href="/pages/about" className="raoza-text-link">About RAOZA <span aria-hidden="true">→</span></Link></div></section>
+            <section className="raoza-final-cta" aria-label="Shop RAOZA"><p>01—06 / T-shirts + Hoodies</p><h2>Wear the<br /><em>point of view.</em></h2><div><Link href="/shop" className="raoza-button raoza-button-light">Shop all apparel <span aria-hidden="true">→</span></Link><Link href="/pages/contact" className="raoza-text-link raoza-text-link-light">Contact <span aria-hidden="true">↗</span></Link></div></section>
         </main>
     </StorefrontLayout>;
 }

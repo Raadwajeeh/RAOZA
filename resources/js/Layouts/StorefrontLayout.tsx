@@ -14,6 +14,7 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
     const categories = page.props.navigation?.categories ?? [];
     const collections = page.props.navigation?.collections ?? [];
     const path = page.url.split('?')[0];
+    const isHome = path === '/';
     const active = (href: string) => href === '/shop' ? path === '/shop' || path.startsWith('/products/') : path === href;
 
     useEffect(() => { setOpen(false); }, [page.url]);
@@ -24,17 +25,25 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
     return <div className="min-h-screen bg-raoza-cream text-raoza-black">
         <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-24 bg-raoza-primary px-4 py-3 text-xs text-raoza-cream focus:translate-y-0">Skip to content</a>
         <div className="raoza-announcement"><span>Design-led printed apparel</span><span aria-hidden="true">✦</span><span>Free delivery is shown when available at checkout</span></div>
-        <header className={`raoza-site-header ${scrolled ? 'is-scrolled' : ''}`}>
+        <header className={`raoza-site-header ${isHome ? 'is-home' : ''} ${scrolled ? 'is-scrolled' : ''} ${open ? 'is-menu-open' : ''}`}>
             <div className="raoza-header-inner">
                 <button type="button" className="raoza-menu-button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="mobile-nav" aria-label={open ? 'Close menu' : 'Open menu'}><span className={open ? 'is-open' : ''} /><span className={open ? 'is-open' : ''} /><b>{open ? 'Close' : 'Menu'}</b></button>
                 <nav aria-label="Primary" className="raoza-desktop-nav raoza-desktop-nav-left">
                     <NavLink href="/shop" active={active('/shop')}>Shop</NavLink>
-                    {categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`} active={path === `/categories/${category.slug}`}>{category.name}</NavLink>)}
+                    {isHome
+                        ? categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`}>{category.name}</NavLink>)
+                        : categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`} active={path === `/categories/${category.slug}`}>{category.name}</NavLink>)}
                 </nav>
-                <Link href="/" aria-label="RAOZA home" className="raoza-header-logo"><img src="/brand/raoza-wordmark-burgundy.png" alt="RAOZA" width="592" height="117" /></Link>
+                <Link href="/" aria-label="RAOZA home" className="raoza-header-logo"><img src={isHome && (!scrolled || open) ? '/brand/raoza-wordmark-light.png' : '/brand/raoza-wordmark-burgundy.png'} alt="RAOZA" width="592" height="117" /></Link>
                 <nav aria-label="Brand and collections" className="raoza-desktop-nav raoza-desktop-nav-right">
-                    {collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`} active={path === `/collections/${collection.slug}`}>{collection.name}</NavLink>)}
-                    <NavLink href="/pages/about" active={path === '/pages/about'}>About</NavLink>
+                    {isHome ? <>
+                        <NavLink href="/#collections">Collections</NavLink>
+                        <NavLink href="/pages/about">About</NavLink>
+                        <NavLink href="/pages/contact">Contact</NavLink>
+                    </> : <>
+                        {collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`} active={path === `/collections/${collection.slug}`}>{collection.name}</NavLink>)}
+                        <NavLink href="/pages/about" active={path === '/pages/about'}>About</NavLink>
+                    </>}
                 </nav>
                 <NavLink href="/cart" className="raoza-cart-link" active={path === '/cart'}>Bag <span aria-hidden="true">({String(cartCount).padStart(2, '0')})</span><span className="sr-only"> with {cartCount} items</span></NavLink>
             </div>
