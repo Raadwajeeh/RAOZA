@@ -17,11 +17,14 @@ use App\Domain\Payments\Models\Payment;
 use App\Domain\Payments\Models\PaymentEvent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use App\Domain\Payments\Exceptions\ProviderOperationException;
+use App\Domain\Marketing\Services\DiscountService;
 use RuntimeException;
 
 class PaymentService
 {
-    public function __construct(private PaymentProvider $provider) {}
+    public function __construct(private PaymentProvider $provider, private DiscountService $discounts) {}
 
     public function createAttempt(Order $order, string $redirectUrl, string $webhookUrl): Payment
     {
@@ -50,8 +53,10 @@ class PaymentService
                 if ($active->provider_payment_id && ($active->metadata['checkout_url'] ?? null)) {
                     return $active;
                 }
-
-                throw new RuntimeException('A payment attempt is already being prepared.');
+                $metadata=$active->metadata??[];
+                $metadata['creation_key']??=(string)Str::uuid();
+                $active->update(['metadata'=>$metadata]);
+                return $active->refresh();
             }
 
             $this->ensureReservationLocked($lockedOrder);
@@ -62,7 +67,7 @@ class PaymentService
                 'currency' => $lockedOrder->currency,
                 'amount' => $lockedOrder->total_amount,
                 'status' => PaymentAttemptStatus::Created,
-                'metadata' => ['order_number' => $lockedOrder->order_number],
+                'metadata' => ['order_number' => $lockedOrder->order_number,'creation_key'=>(string)Str::uuid()],
             ]);
         }, 3);
 
@@ -72,20 +77,25 @@ class PaymentService
 
         try {
             $order = Order::query()->findOrFail($order->id);
-            $remote = $this->provider->create($order, $redirectUrl, $webhookUrl);
+            $creationKey=(string)($payment->metadata['creation_key']??'');
+            if($creationKey==='')throw new RuntimeException('Payment attempt has no creation idempotency key.');
+            $remote = $this->provider->create($order, $redirectUrl, $webhookUrl, $creationKey);
             $this->assertMatches($order, $remote);
             $payment->update([
                 'provider_payment_id' => $remote->id,
                 'method' => $remote->method,
                 'status' => $this->mapStatus($remote->status),
                 'provider_created_at' => now(),
-                'metadata' => ['order_number' => $order->order_number, 'checkout_url' => $remote->checkoutUrl],
+                'metadata' => ['order_number' => $order->order_number, 'creation_key'=>$creationKey, 'checkout_url' => $remote->checkoutUrl],
             ]);
             $order->update(['payment_status' => PaymentStatus::Pending]);
 
             return $payment->refresh();
         } catch (\Throwable $exception) {
-            $payment->update(['status' => PaymentAttemptStatus::Failed, 'failed_at' => now()]);
+            $uncertain=! ($exception instanceof ProviderOperationException) || $exception->outcomeUncertain;
+            $metadata=$payment->metadata??[];
+            $metadata['last_creation_error']=['type'=>$exception::class,'at'=>now()->toIso8601String(),'outcome_uncertain'=>$uncertain];
+            $payment->update(['status'=>$uncertain?PaymentAttemptStatus::Created:PaymentAttemptStatus::Failed,'failed_at'=>$uncertain?null:now(),'metadata'=>$metadata]);
 
             Log::warning('Payment provider creation failed', [
                 'operation' => 'payment_create',
@@ -95,6 +105,7 @@ class PaymentService
                 'provider' => $payment->provider,
                 'provider_payment_id' => $payment->provider_payment_id,
                 'exception_type' => $exception::class,
+                'outcome_uncertain'=>$uncertain,
             ]);
 
             throw $exception;
@@ -250,6 +261,7 @@ class PaymentService
         $order->loadMissing('items');
 
         if ($needsReservation) {
+            $this->discounts->assertRetryClaimAvailable($order);
             foreach ($order->items->sortBy('variant_id') as $item) {
                 if (! $item->variant_id) {
                     throw new RuntimeException('Order item no longer has a variant.');

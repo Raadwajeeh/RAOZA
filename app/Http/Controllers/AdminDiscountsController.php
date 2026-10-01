@@ -11,7 +11,7 @@ class AdminDiscountsController {
  public function __construct(private AuditService $audit){}
  public function index(){
   $discounts=Discount::query()->latest()->get()->map(function(Discount $d){
-   $paid=DB::table('discount_usages')->join('orders','orders.id','=','discount_usages.order_id')->where('discount_usages.discount_id',$d->id)->where('orders.payment_status','paid');
+   $paid=DB::table('discount_usages')->join('orders','orders.id','=','discount_usages.order_id')->where('discount_usages.discount_id',$d->id)->whereIn('orders.payment_status',['paid','partially_refunded','refunded']);
    $d->setAttribute('paid_uses',(clone $paid)->count());$d->setAttribute('discounted_amount',(int)(clone $paid)->sum('discount_usages.amount'));return $d;
   });
   return Inertia::render('Admin/Discounts/Index',['discounts'=>$discounts]);

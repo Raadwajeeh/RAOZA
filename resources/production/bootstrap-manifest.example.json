@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "_instructions": "Copy this file outside the release, replace every null/empty owner field with verified production data, then run production:bootstrap with --dry-run before --confirm. Never add secrets.",
+  "categories": [
+    {"slug": "t-shirts", "name": "T-Shirts", "description": "Graphic T-shirts selected for clean everyday styling and layered looks.", "position": 1},
+    {"slug": "hoodies", "name": "Hoodies", "description": "Printed hoodies that bring RAOZA graphics into colder days and layered outfits.", "position": 2}
+  ],
+  "collections": [
+    {"slug": "drop-01", "name": "Drop 01", "description": "The opening RAOZA edit: graphic essentials shaped by the core burgundy, cream and black palette."},
+    {"slug": "core-essentials", "name": "Core Essentials", "description": "Clean everyday pieces with restrained graphics and an easy place in a modern wardrobe."}
+  ],
+  "products": [
+    {
+      "slug": "raoza-signature-tee", "name": "RAOZA Signature Tee", "category_slug": "t-shirts", "collection_slug": "core-essentials", "position": 1,
+      "base_price": null, "short_description": "A refined everyday essential built around the RAOZA identity.", "description": "A refined everyday essential built around the RAOZA identity.",
+      "fit_notes": "Relaxed / Slightly Oversized", "product_details": "Minimal / Premium / Brand-led", "care_instructions": null,
+      "seo_title": "RAOZA Signature Tee — RAOZA", "seo_description": "A refined everyday essential built around the RAOZA identity.",
+      "images": [{"path": "/catalog/signature-tee/raoza-signature-tee-front.png", "alt_text": "RAOZA Signature Tee front view"}], "variants": []
+    },
+    {
+      "slug": "raoza-editorial-tee", "name": "RAOZA Editorial Tee", "category_slug": "t-shirts", "collection_slug": "drop-01", "position": 2,
+      "base_price": null, "short_description": "A graphic-led expression of the RAOZA visual language.", "description": "A graphic-led expression of the RAOZA visual language.",
+      "fit_notes": "Relaxed / Slightly Oversized", "product_details": "Editorial / Graphic-led / Urban", "care_instructions": null,
+      "seo_title": "RAOZA Editorial Tee — RAOZA", "seo_description": "A graphic-led expression of the RAOZA visual language.",
+      "images": [{"path": "/catalog/editorial-tee/raoza-editorial-tee-front.png", "alt_text": "RAOZA Editorial Tee front view"}], "variants": []
+    },
+    {
+      "slug": "raoza-mark-tee", "name": "RAOZA Mark Tee", "category_slug": "t-shirts", "collection_slug": "core-essentials", "position": 3,
+      "base_price": null, "short_description": "A minimal RAOZA essential centered around the signature monogram.", "description": "A minimal RAOZA essential centered around the brand monogram.",
+      "fit_notes": "Relaxed / Slightly Oversized", "product_details": "Campaign imagery is Deep Burgundy; purchasable colours require owner approval.", "care_instructions": null,
+      "seo_title": "RAOZA Mark Tee — RAOZA", "seo_description": "A minimal RAOZA essential centered around the signature monogram.",
+      "images": [{"path": "/catalog/mark-tee/raoza-mark-tee-front.png", "alt_text": "Deep Burgundy RAOZA Mark Tee front view"}], "variants": []
+    },
+    {
+      "slug": "raoza-essential-hoodie", "name": "RAOZA Essential Hoodie", "category_slug": "hoodies", "collection_slug": "core-essentials", "position": 4,
+      "base_price": null, "short_description": "A heavyweight everyday layer with a restrained RAOZA finish.", "description": "A heavyweight everyday layer with a restrained RAOZA finish.",
+      "fit_notes": "Relaxed / Oversized", "product_details": "Dropped shoulder / Structured hood", "care_instructions": null,
+      "seo_title": "RAOZA Essential Hoodie — RAOZA", "seo_description": "A heavyweight everyday layer with a restrained RAOZA finish.",
+      "images": [{"path": "/catalog/essential-hoodie/raoza-essential-hoodie-front.png", "alt_text": "RAOZA Essential Hoodie front view"}], "variants": []
+    },
+    {
+      "slug": "raoza-structured-hoodie", "name": "RAOZA Structured Hoodie", "category_slug": "hoodies", "collection_slug": "core-essentials", "position": 5,
+      "base_price": null, "short_description": "A structured interpretation of the RAOZA hoodie.", "description": "A structured interpretation of the RAOZA hoodie.",
+      "fit_notes": "Boxy / Oversized", "product_details": "Dropped shoulder / Structured hood", "care_instructions": null,
+      "seo_title": "RAOZA Structured Hoodie — RAOZA", "seo_description": "A structured interpretation of the RAOZA hoodie.",
+      "images": [{"path": "/catalog/structured-hoodie/raoza-structured-hoodie-front.png", "alt_text": "RAOZA Structured Hoodie front view"}], "variants": []
+    },
+    {
+      "slug": "raoza-deep-burgundy-hoodie", "name": "RAOZA Deep Burgundy Hoodie", "category_slug": "hoodies", "collection_slug": "drop-01", "position": 6,
+      "base_price": null, "short_description": "A signature hoodie built around RAOZA's deepest brand color.", "description": "The deepest expression of the RAOZA palette.",
+      "fit_notes": "Relaxed / Oversized", "product_details": "Unisex presentation / Deep Burgundy / Muted Gold detailing", "care_instructions": null,
+      "seo_title": "RAOZA Deep Burgundy Hoodie — RAOZA", "seo_description": "A signature hoodie built around RAOZA's deepest brand color.",
+      "images": [{"path": "/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-front.png", "alt_text": "RAOZA Deep Burgundy Hoodie front view"}], "variants": []
+    }
+  ]
+}

@@ -9,6 +9,7 @@ use App\Domain\Payments\Enums\PaymentAttemptStatus;
 use App\Domain\Payments\Models\Payment;
 use App\Domain\Payments\Models\PaymentEvent;
 use App\Domain\Payments\Services\PaymentService;
+use App\Domain\Payments\Exceptions\ProviderOperationException;
 use App\Domain\Returns\Services\RefundService;
 use App\Mail\PaymentConfirmedMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -215,5 +216,26 @@ class PaymentLifecycleIntegrityTest extends TestCase
         $this->assertSame(PaymentAttemptStatus::Authorized, $payment->fresh()->status);
         $this->assertSame(PaymentStatus::Pending, $fixture['order']->fresh()->payment_status);
         $this->assertSame(1, $fixture['inventories'][0]->fresh()->quantity_reserved);
+    }
+
+    public function test_uncertain_create_retries_same_logical_attempt_and_idempotency_key(): void
+    {
+        $fixture=$this->checkoutOrder();
+        $service=app(PaymentService::class);
+        $this->provider->paymentCreateException=new ProviderOperationException('Lost response.',true);
+        try {
+            $service->createAttempt($fixture['order'],'https://store.test/return','https://store.test/webhook');
+            $this->fail('Uncertain provider error was not propagated.');
+        } catch (ProviderOperationException) {
+            $this->assertDatabaseCount('payments',1);
+        }
+        $payment=$fixture['order']->payments()->firstOrFail();
+        $this->assertSame(PaymentAttemptStatus::Created,$payment->status);
+        $this->provider->paymentCreateException=null;
+        $recovered=$service->createAttempt($fixture['order']->fresh(),'https://store.test/return','https://store.test/webhook');
+        $this->assertSame($payment->id,$recovered->id);
+        $this->assertNotNull($recovered->provider_payment_id);
+        $this->assertCount(2,$this->provider->creationKeys);
+        $this->assertSame($this->provider->creationKeys[0],$this->provider->creationKeys[1]);
     }
 }

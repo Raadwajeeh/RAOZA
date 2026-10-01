@@ -11,3 +11,8 @@ Schedule::command('commerce:reconcile --limit=50')
     ->name('commerce-reconciliation')
     ->everyFiveMinutes()
     ->withoutOverlapping(10);
+
+Schedule::command('commerce:expire-pending-orders --limit=100')
+    ->name('pending-order-expiration')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);

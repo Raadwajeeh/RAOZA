@@ -10,8 +10,8 @@ use App\Domain\Returns\Models\Refund;
 use RuntimeException;
 class DemoPaymentProvider implements PaymentProvider {
  public function name():string{return 'demo';}
- public function create(Order $order,string $redirectUrl,string $webhookUrl):ProviderPayment {
-  $this->guard(); $id='demo_'.bin2hex(random_bytes(8));
+ public function create(Order $order,string $redirectUrl,string $webhookUrl,string $idempotencyKey):ProviderPayment {
+  $this->guard(); $id='demo_'.substr(hash('sha256',$idempotencyKey),0,16);
   return new ProviderPayment($id,'open',$order->total_amount,$order->currency,route('demo.payment.show',['providerPaymentId'=>$id]),'demo',$order->order_number,['demo'=>true]);
  }
  public function fetch(string $id):ProviderPayment {

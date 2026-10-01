@@ -18,6 +18,8 @@ final class FakePaymentProvider implements PaymentProvider
     public ?string $currency = null;
     public ?string $orderNumber = null;
     public int $createCalls = 0;
+    public array $creationKeys = [];
+    public ?ProviderOperationException $paymentCreateException = null;
     public int $fetchCalls = 0;
     public string $refundStatus = 'pending';
     public string $refundId = 're_test_refund';
@@ -38,9 +40,11 @@ final class FakePaymentProvider implements PaymentProvider
         return 'mollie';
     }
 
-    public function create(Order $order, string $redirectUrl, string $webhookUrl): ProviderPayment
+    public function create(Order $order, string $redirectUrl, string $webhookUrl, string $idempotencyKey): ProviderPayment
     {
         $this->createCalls++;
+        $this->creationKeys[] = $idempotencyKey;
+        if ($this->paymentCreateException) throw $this->paymentCreateException;
 
         return $this->payment($order);
     }

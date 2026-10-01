@@ -3,6 +3,8 @@
 namespace App\Domain\Returns\Services;
 
 use App\Domain\Commerce\Enums\PaymentStatus;
+use App\Domain\Commerce\Enums\OrderStatus;
+use App\Domain\Commerce\Enums\FulfillmentStatus;
 use App\Domain\Commerce\Models\Order;
 use App\Domain\Payments\Contracts\PaymentProvider;
 use App\Domain\Payments\Data\ProviderRefund;
@@ -255,6 +257,20 @@ class RefundService
             default => PaymentStatus::Refunded,
         };
         $order->update(['payment_status' => $status]);
+
+        if ($status === PaymentStatus::Refunded
+            && $order->fulfillment_status !== FulfillmentStatus::Fulfilled
+            && $order->order_status !== OrderStatus::Cancelled) {
+            $fromOrder = $order->order_status->value;
+            $fromFulfillment = $order->fulfillment_status->value;
+            $order->update([
+                'order_status'=>OrderStatus::Cancelled,
+                'fulfillment_status'=>FulfillmentStatus::Cancelled,
+                'cancelled_at'=>$order->cancelled_at ?: now(),
+            ]);
+            $order->statusHistory()->create(['domain'=>'order','from_status'=>$fromOrder,'to_status'=>OrderStatus::Cancelled->value,'reason'=>'full_refund_verified','created_at'=>now()]);
+            $order->statusHistory()->create(['domain'=>'fulfillment','from_status'=>$fromFulfillment,'to_status'=>FulfillmentStatus::Cancelled->value,'reason'=>'full_refund_verified','created_at'=>now()]);
+        }
     }
 
     private function authoritativePayment(Order $order, bool $lock): Payment

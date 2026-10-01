@@ -115,7 +115,7 @@ class CheckoutIntegrityTest extends TestCase
         $this->assertSame(0, $order->items()->firstOrFail()->total_amount);
     }
 
-    public function test_discount_usage_limits_follow_the_existing_paid_order_definition(): void
+    public function test_pending_discount_claim_reserves_hard_usage_limit_and_cancelled_claim_releases_it(): void
     {
         $discount = Discount::query()->create(['code' => 'ONCE', 'name' => 'Once', 'type' => 'fixed', 'value' => 100, 'usage_limit' => 1, 'active' => true]);
         $fixture = $this->checkoutOrder();
@@ -123,11 +123,20 @@ class CheckoutIntegrityTest extends TestCase
         $fixture['order']->refresh();
         DB::table('discount_usages')->insert(['discount_id' => $discount->id, 'order_id' => $fixture['order']->id, 'customer_email' => 'first@example.com', 'amount' => 100, 'created_at' => now()]);
 
-        $quote = app(DiscountService::class)->quote('once', 1000, 'second@example.com');
-        $this->assertSame(100, $quote['amount']);
+        try { app(DiscountService::class)->quote('once', 1000, 'second@example.com'); $this->fail('Pending claim did not reserve hard limit.'); }
+        catch (ValidationException) { $this->assertTrue(true); }
+        $fixture['order']->update(['order_status'=>'cancelled','payment_status'=>'failed']);
+        $quote=app(DiscountService::class)->quote('ONCE',1000,'second@example.com');
+        $this->assertSame(100,$quote['amount']);
+    }
 
-        $fixture['order']->update(['payment_status' => 'paid']);
+    public function test_two_pending_checkouts_cannot_exceed_hard_usage_cap(): void
+    {
+        Discount::query()->create(['code'=>'HARDONE','name'=>'Hard one','type'=>'fixed','value'=>100,'usage_limit'=>1,'active'=>true]);
+        $first=$this->cartFixture();
+        app(CheckoutService::class)->createOrder($first['cart'],$this->checkoutData($first['shipping']->id,['discount_code'=>'HARDONE','email'=>'one@example.com']));
+        $second=$this->cartFixture();
         $this->expectException(ValidationException::class);
-        app(DiscountService::class)->quote('ONCE', 1000, 'second@example.com');
+        app(CheckoutService::class)->createOrder($second['cart'],$this->checkoutData($second['shipping']->id,['discount_code'=>'HARDONE','email'=>'two@example.com']));
     }
 }

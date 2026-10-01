@@ -103,6 +103,7 @@ Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(func
     Route::patch('/inventory/{variant}', [AdminInventoryController::class, 'adjust'])->middleware(['permission:inventory.adjust','throttle:30,1'])->name('inventory.adjust');
     Route::get('/orders', [AdminOrdersController::class, 'index'])->middleware('permission:orders.view')->name('orders.index');
     Route::get('/orders/{order:order_number}', [AdminOrdersController::class, 'show'])->middleware('permission:orders.view')->name('orders.show');
+    Route::post('/orders/{order:order_number}/cancel', [AdminOrdersController::class, 'cancel'])->middleware(['permission:orders.manage','throttle:20,1'])->name('orders.cancel');
     Route::get('/customers', [AdminCustomersController::class, 'index'])->middleware('permission:customers.view')->name('customers.index');
     Route::get('/customers/{email}', [AdminCustomersController::class, 'show'])->middleware('permission:customers.view')->where('email','.*')->name('customers.show');
     Route::get('/content', [AdminContentController::class, 'index'])->middleware('permission:content.manage')->name('content.index');

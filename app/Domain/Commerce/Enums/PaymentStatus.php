@@ -19,4 +19,9 @@ enum PaymentStatus: string
     {
         return in_array($this, [self::Unpaid, self::Pending, self::Failed], true);
     }
+
+    public function allowsFulfillment(): bool
+    {
+        return in_array($this, [self::Paid, self::PartiallyRefunded], true);
+    }
 }

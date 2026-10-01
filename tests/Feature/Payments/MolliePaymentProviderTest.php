@@ -28,12 +28,13 @@ class MolliePaymentProviderTest extends TestCase
         $fixture = $this->checkoutOrder([['price' => 1001]]);
         Http::fake(['api.mollie.test/*' => Http::response($this->response('10.01'), 201)]);
 
-        $remote = app(MolliePaymentProvider::class)->create($fixture['order'], 'https://store.test/return', 'https://store.test/webhook');
+        $remote = app(MolliePaymentProvider::class)->create($fixture['order'], 'https://store.test/return', 'https://store.test/webhook', 'stable-payment-attempt');
 
         $this->assertSame(1001, $remote->amount);
         Http::assertSent(function (Request $request): bool {
             return $request->url() === 'https://api.mollie.test/v2/payments'
                 && $request['amount'] === ['currency' => 'EUR', 'value' => '10.01']
+                && $request->hasHeader('Idempotency-Key', 'stable-payment-attempt')
                 && $request['redirectUrl'] === 'https://store.test/return'
                 && $request['webhookUrl'] === 'https://store.test/webhook';
         });
