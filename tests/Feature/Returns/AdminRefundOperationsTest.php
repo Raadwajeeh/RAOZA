@@ -65,6 +65,11 @@ class AdminRefundOperationsTest extends TestCase
         ]);
         $this->assertSame(1, $this->provider->createRefundCalls);
         $this->assertSame(1, $this->provider->fetchRefundCalls);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $manager->id,
+            'action' => 'refund.initiated',
+            'subject_type' => \App\Domain\Returns\Models\Refund::class,
+        ]);
     }
 
     private function paidOrder(): \App\Domain\Commerce\Models\Order

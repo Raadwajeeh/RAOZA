@@ -62,4 +62,21 @@ class PendingOrderExpirationTest extends TestCase
 
         $this->assertSame(4, app(PendingOrderExpirationService::class)->expire()['expired']);
     }
+
+    public function test_uncertain_lost_response_attempt_is_reserved_for_recovery(): void
+    {
+        $fixture = $this->checkoutOrder();
+        $fixture['order']->update(['placed_at'=>now()->subDay(),'payment_status'=>PaymentStatus::Pending]);
+        Payment::query()->create([
+            'order_id'=>$fixture['order']->id,
+            'provider'=>'mollie',
+            'currency'=>'EUR',
+            'amount'=>$fixture['order']->total_amount,
+            'status'=>PaymentAttemptStatus::Created,
+            'metadata'=>['creation_key'=>'stable-key','last_creation_error'=>['outcome_uncertain'=>true]],
+        ]);
+
+        $this->assertSame(0, app(PendingOrderExpirationService::class)->expire()['expired']);
+        $this->assertSame(1, $fixture['inventories'][0]->fresh()->quantity_reserved);
+    }
 }

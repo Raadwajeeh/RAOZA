@@ -1,10 +1,11 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import Money from '../../Components/Money';
+import CatalogImage from '../../Components/CatalogImage';
 import SeoHead, { Seo } from '../../Components/SeoHead';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 
-type Image={id?:number;url:string;alt:string};
+type Image={id?:number;url:string;alt:string;width?:number|null;height?:number|null};
 type OptionValue={id:number;value:string;metadata?:unknown};
 type Option={id:number;name:string;values:OptionValue[]};
 type Variant={id:number;sku:string;price:number;availableQuantity:number;available:boolean;optionValueIds:number[];options:Record<string,string>;images:Image[]};
@@ -66,7 +67,7 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
 
     const renderImage=(image:Image|undefined, decorative=false, priority=false)=>(
         image?.url
-            ? <img src={image.url} alt={decorative?'':image.alt} loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} decoding="async" className="h-full w-full object-cover"/>
+            ? <CatalogImage src={image.url} alt={decorative?'':image.alt} width={image.width} height={image.height} sizes="(min-width: 1024px) 58vw, 100vw" loading={priority?'eager':'lazy'} fetchPriority={priority?'high':'auto'} className="h-full w-full object-cover"/>
             : <div className="flex h-full items-center justify-center font-display text-5xl text-raoza-primary/20">RAOZA</div>
     );
 

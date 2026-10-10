@@ -45,7 +45,7 @@ final class OfficialCatalogSeeder extends Seeder
                     'seo_title' => $item['name'].' — RAOZA',
                     'seo_description' => $item['short_description'],
                     'canonical_url' => null,
-                    'og_image' => $item['images'][0][0],
+                    'og_image' => preg_replace('/\.png$/', '.webp', $item['images'][0][0]),
                     'indexable' => true,
                     'published_at' => $product->published_at ?? now(),
                 ]);
@@ -55,9 +55,10 @@ final class OfficialCatalogSeeder extends Seeder
                 $product->categories()->sync([$category->id => ['position' => $item['position']]]);
                 $product->collections()->sync([$collection->id => ['position' => $item['position']]]);
 
-                $paths = collect($item['images'])->pluck(0)->all();
+                $paths = collect($item['images'])->pluck(0)->map(fn (string $path) => preg_replace('/\.png$/', '.webp', $path))->all();
                 $product->images()->whereNull('variant_id')->whereNotIn('path', $paths)->delete();
                 foreach ($item['images'] as $position => [$path, $alt]) {
+                    $path = preg_replace('/\.png$/', '.webp', $path);
                     $absolute = public_path(ltrim($path, '/'));
                     if (! is_file($absolute)) {
                         throw new RuntimeException("Official catalog image is missing: {$path}");

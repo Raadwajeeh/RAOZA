@@ -60,19 +60,22 @@ final class PendingOrderExpirationService
             return false;
         }
 
-        return ! $order->payments()
-            ->where(function ($query): void {
-                $query->where(function ($providerState): void {
-                    $providerState->whereNotNull('provider_payment_id')
-                        ->whereIn('status', [
-                            PaymentAttemptStatus::Created->value,
-                            PaymentAttemptStatus::Open->value,
-                            PaymentAttemptStatus::Pending->value,
-                            PaymentAttemptStatus::Authorized->value,
-                            PaymentAttemptStatus::Paid->value,
-                        ]);
-                })->orWhere('status', PaymentAttemptStatus::Paid->value);
-            })
-            ->exists();
+        return ! $order->payments()->get(['provider_payment_id', 'status', 'metadata'])->contains(function ($payment): bool {
+            if ($payment->status === PaymentAttemptStatus::Paid) {
+                return true;
+            }
+
+            if ($payment->provider_payment_id !== null && in_array($payment->status, [
+                PaymentAttemptStatus::Created,
+                PaymentAttemptStatus::Open,
+                PaymentAttemptStatus::Pending,
+                PaymentAttemptStatus::Authorized,
+            ], true)) {
+                return true;
+            }
+
+            return $payment->status === PaymentAttemptStatus::Created
+                && (bool) data_get($payment->metadata, 'last_creation_error.outcome_uncertain', false);
+        });
     }
 }

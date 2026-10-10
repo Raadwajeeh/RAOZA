@@ -26,7 +26,8 @@ class OrderCancellationIntegrityTest extends TestCase
         $this->assertSame(OrderStatus::Cancelled, $again->order_status);
         $this->assertSame(0, $fixture['inventories'][0]->fresh()->quantity_reserved);
         $this->assertSame(3, $fixture['inventories'][0]->fresh()->quantity_on_hand);
-        $this->assertDatabaseCount('order_status_history', 2);
+        // Checkout creates one order entry; cancellation adds one order and one fulfillment entry.
+        $this->assertDatabaseCount('order_status_history', 3);
         $this->assertDatabaseHas('order_status_history', ['order_id' => $fixture['order']->id, 'reason' => 'admin_cancelled', 'actor_user_id' => $actor->id]);
     }
 }

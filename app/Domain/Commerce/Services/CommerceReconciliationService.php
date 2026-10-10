@@ -7,6 +7,7 @@ use App\Domain\Payments\Contracts\PaymentProvider;
 use App\Domain\Payments\Enums\PaymentAttemptStatus;
 use App\Domain\Payments\Models\Payment;
 use App\Domain\Payments\Services\PaymentSyncCoordinator;
+use App\Domain\Payments\Services\PaymentService;
 use App\Domain\Returns\Enums\RefundStatus;
 use App\Domain\Returns\Models\Refund;
 use App\Domain\Returns\Services\RefundService;
@@ -18,6 +19,7 @@ class CommerceReconciliationService
     public function __construct(
         private PaymentProvider $provider,
         private PaymentSyncCoordinator $payments,
+        private PaymentService $paymentCreation,
         private RefundService $refunds,
     ) {}
 
@@ -27,8 +29,47 @@ class CommerceReconciliationService
         $limit = max(1, min($limit, 200));
         $summary = ['payments_checked' => 0, 'payments_changed' => 0, 'refunds_checked' => 0, 'refunds_changed' => 0, 'failures' => 0];
 
+        $uncertainIds = Payment::query()
+            ->where('provider', $this->provider->name())
+            ->whereNull('provider_payment_id')
+            ->where('status', PaymentAttemptStatus::Created->value)
+            ->where('metadata->last_creation_error->outcome_uncertain', true)
+            ->whereHas('order', fn ($query) => $query->whereIn('payment_status', [
+                PaymentStatus::Unpaid->value,
+                PaymentStatus::Pending->value,
+                PaymentStatus::Failed->value,
+            ]))
+            ->orderBy('id')
+            ->limit($limit)
+            ->pluck('id');
+
+        foreach ($uncertainIds as $paymentId) {
+            $summary['payments_checked']++;
+            try {
+                $payment = Payment::query()->with('order')->findOrFail($paymentId);
+                $recovered = $this->paymentCreation->createAttempt(
+                    $payment->order,
+                    route('payments.return', ['order' => $payment->order->order_number]),
+                    route('payments.webhook'),
+                );
+                if ($recovered->provider_payment_id !== null) {
+                    $summary['payments_changed']++;
+                }
+            } catch (Throwable $exception) {
+                $summary['failures']++;
+                Log::warning('Uncertain payment creation recovery failed', [
+                    'operation' => 'payment_creation_recovery',
+                    'payment_id' => $paymentId,
+                    'exception_type' => $exception::class,
+                ]);
+            }
+        }
+
+        $remainingPaymentLimit = max(0, $limit - $summary['payments_checked']);
+
         $paymentIds = Payment::query()
             ->where('provider', $this->provider->name())
+            ->whereNotIn('id', $uncertainIds)
             ->whereNotNull('provider_payment_id')
             ->whereIn('status', [
                 PaymentAttemptStatus::Created->value,
@@ -43,7 +84,7 @@ class CommerceReconciliationService
                 PaymentStatus::Failed->value,
             ]))
             ->orderBy('id')
-            ->limit($limit)
+            ->limit($remainingPaymentLimit)
             ->pluck('id');
 
         foreach ($paymentIds as $paymentId) {

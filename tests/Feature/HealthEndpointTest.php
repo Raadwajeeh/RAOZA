@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -39,5 +40,29 @@ final class HealthEndpointTest extends TestCase
             ])
             ->assertDontSee('secret-host')
             ->assertDontSee('internal path');
+    }
+
+    public function test_repeated_health_probes_are_read_only_and_do_not_start_storefront_sessions(): void
+    {
+        $tables = ['carts', 'analytics_events', 'consent_records', 'sessions'];
+        $before = collect($tables)->mapWithKeys(fn (string $table) => [$table => Schema::hasTable($table) ? DB::table($table)->count() : 0]);
+
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $this->get('/health/live')->assertOk()->assertHeaderMissing('Set-Cookie');
+            $this->get('/health/ready')->assertOk()->assertHeaderMissing('Set-Cookie');
+        }
+
+        foreach ($before as $table => $count) {
+            $this->assertSame($count, DB::table($table)->count(), "Health probes mutated {$table}.");
+        }
+    }
+
+    public function test_forwarded_https_is_not_trusted_without_an_explicit_proxy_allowlist(): void
+    {
+        $this->withServerVariables(['HTTP_X_FORWARDED_PROTO' => 'https'])
+            ->get('/health/live')
+            ->assertOk();
+
+        $this->assertFalse(request()->isSecure());
     }
 }

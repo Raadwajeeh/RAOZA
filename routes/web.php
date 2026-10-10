@@ -15,7 +15,6 @@ use App\Http\Controllers\AdminDiscountsController;
 use App\Http\Controllers\AdminContentController;
 use App\Http\Controllers\AdminStoreController;
 use App\Http\Controllers\ContentController;
-use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ConsentController;
 use App\Http\Controllers\DemoPaymentController;
 use App\Domain\Content\Enums\ContentStatus;
@@ -29,9 +28,6 @@ use App\Domain\Catalog\Models\Product;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
-Route::get('/health/live', [HealthController::class, 'live'])->name('health.live');
-Route::get('/health/ready', [HealthController::class, 'ready'])->middleware('throttle:60,1')->name('health.ready');
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
 Route::get('/shop', [StorefrontController::class, 'shop'])->name('shop');

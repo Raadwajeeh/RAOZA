@@ -69,7 +69,7 @@ class OfficialCatalogTest extends TestCase
             ->where('product.position', 6)
             ->has('product.images', 4)
             ->where('seo.jsonLd.@graph.0.name', 'RAOZA Deep Burgundy Hoodie')
-            ->where('seo.og', url('/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-front.png')));
+            ->where('seo.og', url('/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-front.webp')));
     }
 
     public function test_official_catalog_seeding_is_idempotent(): void

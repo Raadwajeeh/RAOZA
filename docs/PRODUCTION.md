@@ -10,6 +10,7 @@ Keep the production `.env` in the host secret store or outside the release direc
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://raoza.nl
+TRUSTED_PROXIES=<comma-separated proxy IPs or CIDRs supplied by the host>
 APP_KEY=base64:<unique-production-key>
 LOG_CHANNEL=stack
 LOG_STACK=stderr
@@ -26,7 +27,21 @@ PAYMENT_PROVIDER=mollie
 RAOZA_DEMO_MODE=false
 ```
 
-Use a least-privilege database account. Configure trusted proxy/HTTPS forwarding according to the selected host, terminate TLS correctly, and verify that Laravel sees requests as HTTPS. Do not enable Mollie Live until test-mode acceptance is complete. The demo provider is server-side blocked in production even if it is accidentally selected.
+Use a least-privilege database account. `TRUSTED_PROXIES` is empty by default and must never be set to `*`; list only proxy/load-balancer IPs or CIDRs supplied by the selected host. The edge must overwrite client-supplied forwarding headers and send `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Port` and `X-Forwarded-Proto`. Verify generated canonical, checkout-return and webhook URLs are HTTPS, HTTP redirects to HTTPS, and cookies carry `Secure`. Enable HSTS only at the final edge after TLS and subdomain coverage are confirmed. Do not enable Mollie Live until test-mode acceptance is complete. The demo provider is server-side blocked in production even if it is accidentally selected.
+
+## Controlled bootstrap and staff recovery
+
+Do not run `DatabaseSeeder`, `LocalQaSeeder` or demo seeders in production. Start with a reviewed copy of `resources/production/bootstrap-manifest.example.json`:
+
+```bash
+php artisan production:bootstrap /secure/path/catalog.json --dry-run
+php artisan production:bootstrap /secure/path/catalog.json --confirm
+php artisan admin:provision-owner owner@example.com --name="Owner name" --confirm
+```
+
+The manifest is slug/SKU based, portable to an empty database, and does not rely on QA product IDs. It separates reference taxonomy, product records, owner-supplied settings and inventory. Validation refuses incomplete or demo manifests; the example intentionally contains no invented variants, stock, shipping truth, legal facts or secrets. Review it outside the release tree and supply only verified owner data. Owner passwords are entered through a hidden prompt and never printed.
+
+If normal staff mail recovery is unavailable, an operator with server console access may run `php artisan admin:reset-password staff@example.com --confirm`. It accepts staff accounts only, uses a hidden strong-password prompt, invalidates database sessions/reset tokens and writes an audit record.
 
 ## Transactional mail
 
@@ -60,7 +75,7 @@ Inspect the exception and job type before retrying. Transactional mail and other
 
 ## Scheduler and reconciliation
 
-The application schedules `commerce:reconcile --limit=50` every five minutes. This gives a small webshop prompt webhook recovery without excessive Mollie traffic. A ten-minute `withoutOverlapping` lock prevents uncontrolled overlap; the underlying service remains idempotent. The first deployment assumes one application scheduler host.
+The application schedules `commerce:reconcile --limit=50` and `commerce:expire-pending-orders --limit=100` every five minutes. Reconciliation also retries uncertain payment-create outcomes with the original stable idempotency key. Expiry cancels only old, unpaid pending orders without provider state requiring reconciliation and releases each reservation exactly once. Both use ten-minute overlap locks and idempotent transactional services. The reservation window is configured with `PENDING_ORDER_RESERVATION_MINUTES` (30 minutes by default); it is an internal safety window, not a customer-facing promise. The first deployment assumes one application scheduler host.
 
 Configure one system cron entry, not one entry per task:
 
@@ -73,6 +88,7 @@ Inspect and operate it with:
 ```bash
 php artisan schedule:list
 php artisan commerce:reconcile --limit=50
+php artisan commerce:expire-pending-orders --limit=100
 ```
 
 A non-zero reconciliation exit means at least one payment/refund could not be reconciled. Review sanitized logs and provider state, fix the cause, then rerun. Alert on repeated non-zero runs.
@@ -98,6 +114,15 @@ Deploy a reviewed commit and retain the previous release. CI or staging must pas
 - `/health/live` proves the Laravel process responds. It does not test dependencies.
 - `/health/ready` runs only a minimal database query. It returns 503 with `database: false` on failure.
 - Neither endpoint checks Mollie or mail, and neither returns exception text, credentials, SQL or paths.
+- Both endpoints are registered outside the storefront/web middleware stack, so polling does not start sessions, resolve carts or record analytics.
+
+## Retention foundation
+
+`php artisan privacy:retention-report` is a non-destructive report by default. No retention period is assumed. Configure only owner/legal-approved `RETENTION_*_DAYS` values. Financial, order, payment, refund, inventory and audit records are excluded. Destructive pruning additionally requires both `RETENTION_PRUNING_ENABLED=true` and `--execute --confirm`; do not schedule it until the policy and restore procedure are approved.
+
+## Catalog image delivery
+
+Official catalog PNG sources are preserved as source/fallback assets. `npm run images:optimize` reproducibly creates full, 960px and 640px WebP derivatives. Storefront catalog components provide responsive `srcset`, intrinsic dimensions, lazy loading below the fold, and eager/high priority for LCP imagery. Admin uploads continue to accept JPG, PNG and WebP without assuming static derivatives.
 
 Production logs should go to captured stderr or rotated daily files. Financial logs use internal IDs, order numbers where useful, provider IDs and exception classes—never credentials, authorization headers, cookies, addresses or raw customer/provider payloads. Failed jobs emit sanitized job/queue context and are stored in `failed_jobs`.
 

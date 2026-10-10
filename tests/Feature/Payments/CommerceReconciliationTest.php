@@ -6,6 +6,7 @@ use App\Domain\Commerce\Enums\PaymentStatus;
 use App\Domain\Commerce\Services\CommerceReconciliationService;
 use App\Domain\Marketing\Models\AnalyticsEvent;
 use App\Domain\Payments\Contracts\PaymentProvider;
+use App\Domain\Payments\Exceptions\ProviderOperationException;
 use App\Domain\Payments\Services\PaymentService;
 use App\Domain\Returns\Enums\RefundStatus;
 use App\Domain\Returns\Services\RefundService;
@@ -95,5 +96,28 @@ class CommerceReconciliationTest extends TestCase
         $this->assertDatabaseCount('inventory_movements', 1);
         $this->assertDatabaseCount('payment_events', 1);
         Mail::assertQueued(PaymentConfirmedMail::class, 1);
+    }
+
+    public function test_reconciliation_recovers_an_uncertain_payment_create_with_the_same_key(): void
+    {
+        $fixture = $this->checkoutOrder();
+        $this->provider->paymentCreateException = new ProviderOperationException('Lost response.', true);
+
+        try {
+            app(PaymentService::class)->createAttempt($fixture['order'], 'https://store.test/return', 'https://store.test/webhook');
+            $this->fail('The simulated lost response should be propagated.');
+        } catch (ProviderOperationException) {
+            $this->assertDatabaseCount('payments', 1);
+        }
+
+        $this->provider->paymentCreateException = null;
+        $summary = app(CommerceReconciliationService::class)->reconcile(10);
+        $payment = $fixture['order']->payments()->firstOrFail();
+
+        $this->assertSame(1, $summary['payments_checked']);
+        $this->assertSame(1, $summary['payments_changed']);
+        $this->assertSame(0, $summary['failures']);
+        $this->assertNotNull($payment->provider_payment_id);
+        $this->assertSame($this->provider->creationKeys[0], $this->provider->creationKeys[1]);
     }
 }

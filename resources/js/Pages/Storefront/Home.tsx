@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import Money from '../../Components/Money';
+import CatalogImage from '../../Components/CatalogImage';
 import SeoHead, { Seo } from '../../Components/SeoHead';
 import { ProductCardData } from '../../Components/ProductCard';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
@@ -21,7 +22,7 @@ const image = (product: HomeProduct | undefined, preferred: number, fallback = 0
 
 function EditorialImage({ source, className = '', eager = false }: { source?: ImageData; className?: string; eager?: boolean }) {
     if (!source) return <div className={`grid place-items-center bg-raoza-primary/5 ${className}`}><span className="font-display text-3xl text-raoza-primary/25">RAOZA</span></div>;
-    return <img src={source.url} alt={source.alt} width={source.width ?? undefined} height={source.height ?? undefined} loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'auto'} className={className} />;
+    return <CatalogImage src={source.url} alt={source.alt} width={source.width} height={source.height} sizes="(min-width: 1024px) 50vw, 100vw" loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'auto'} className={className} />;
 }
 
 function CampaignPanel({ product, source, index }: { product: HomeProduct; source?: ImageData; index: number }) {
