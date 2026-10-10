@@ -74,6 +74,12 @@ class PaymentController extends Controller
             ->first();
 
         if (! $payment) {
+            Log::critical('Unknown provider payment webhook requires investigation', [
+                'operation' => 'unknown_payment_webhook',
+                'provider' => 'mollie',
+                'provider_payment_id_hash' => hash('sha256', $providerId),
+            ]);
+
             return response('', 200);
         }
 

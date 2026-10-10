@@ -9,17 +9,18 @@ use App\Domain\Commerce\Models\Order;
 use App\Domain\Inventory\Enums\InventoryMovementType;
 use App\Domain\Inventory\Models\Inventory;
 use App\Domain\Inventory\Models\InventoryMovement;
+use App\Domain\Marketing\Services\DiscountService;
 use App\Domain\Payments\Contracts\PaymentProvider;
 use App\Domain\Payments\Data\PaymentSyncResult;
 use App\Domain\Payments\Data\ProviderPayment;
 use App\Domain\Payments\Enums\PaymentAttemptStatus;
+use App\Domain\Payments\Exceptions\ProviderOperationException;
 use App\Domain\Payments\Models\Payment;
 use App\Domain\Payments\Models\PaymentEvent;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use App\Domain\Payments\Exceptions\ProviderOperationException;
-use App\Domain\Marketing\Services\DiscountService;
 use RuntimeException;
 
 class PaymentService
@@ -28,7 +29,7 @@ class PaymentService
 
     public function createAttempt(Order $order, string $redirectUrl, string $webhookUrl): Payment
     {
-        $payment = DB::transaction(function () use ($order): Payment {
+        [$payment, $ownsCreation] = DB::transaction(function () use ($order): array {
             $lockedOrder = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
             if (! $lockedOrder->payment_status->canAcceptPayment()) {
@@ -39,63 +40,106 @@ class PaymentService
                 ->where('order_id', $lockedOrder->id)
                 ->where('provider', $this->provider->name())
                 ->whereIn('status', [
+                    PaymentAttemptStatus::Creating->value,
                     PaymentAttemptStatus::Created->value,
                     PaymentAttemptStatus::Open->value,
                     PaymentAttemptStatus::Pending->value,
                     PaymentAttemptStatus::Authorized->value,
                     PaymentAttemptStatus::Paid->value,
+                    PaymentAttemptStatus::ReviewRequired->value,
                 ])
                 ->latest('id')
                 ->lockForUpdate()
                 ->first();
 
             if ($active) {
-                if ($active->provider_payment_id && ($active->metadata['checkout_url'] ?? null)) {
-                    return $active;
+                if ($lockedOrder->order_status === OrderStatus::Cancelled) {
+                    throw new RuntimeException('A cancelled order cannot reuse an unresolved payment attempt.');
                 }
-                $metadata=$active->metadata??[];
-                $metadata['creation_key']??=(string)Str::uuid();
-                $active->update(['metadata'=>$metadata]);
-                return $active->refresh();
+                if ($active->status === PaymentAttemptStatus::ReviewRequired) {
+                    throw new RuntimeException('This payment attempt requires manual provider review.');
+                }
+                if ($active->provider_payment_id && ($active->metadata['checkout_url'] ?? null)) {
+                    $this->assertReservationOwnership($lockedOrder);
+
+                    return [$active, false];
+                }
+                if ($active->provider_payment_id) {
+                    return [$active, false];
+                }
+
+                $metadata = $active->metadata ?? [];
+                $metadata['creation_key'] ??= (string) Str::uuid();
+                $metadata['first_provider_attempt_at'] ??= $active->created_at->toIso8601String();
+                if (! isset($metadata['credential_fingerprint']) && $this->retryDeadlinePassed($metadata)) {
+                    return [$this->requireReview($active, $metadata, 'legacy_attempt_outside_safe_retry_window'), false];
+                }
+                $metadata['credential_fingerprint'] ??= $this->provider->credentialFingerprint();
+
+                if ($metadata['credential_fingerprint'] !== $this->provider->credentialFingerprint()) {
+                    return [$this->requireReview($active, $metadata, 'provider_credential_changed'), false];
+                }
+                if ($this->retryDeadlinePassed($metadata)) {
+                    return [$this->requireReview($active, $metadata, 'automatic_retry_deadline_elapsed'), false];
+                }
+
+                $claimedAt = data_get($metadata, 'creation_claimed_at');
+                if ($active->status === PaymentAttemptStatus::Creating
+                    && is_string($claimedAt)
+                    && now()->diffInMinutes($claimedAt, absolute: true) < max(1, (int) config('payments.creation_claim_minutes', 2))) {
+                    return [$active, false];
+                }
+
+                $metadata['creation_claimed_at'] = now()->toIso8601String();
+                $metadata['last_provider_attempt_at'] = now()->toIso8601String();
+                $active->update(['status' => PaymentAttemptStatus::Creating, 'metadata' => $metadata]);
+
+                return [$active->refresh(), true];
             }
 
             $this->ensureReservationLocked($lockedOrder);
 
-            return Payment::query()->create([
+            $now = now()->toIso8601String();
+            $created = Payment::query()->create([
                 'order_id' => $lockedOrder->id,
                 'provider' => $this->provider->name(),
                 'currency' => $lockedOrder->currency,
                 'amount' => $lockedOrder->total_amount,
-                'status' => PaymentAttemptStatus::Created,
-                'metadata' => ['order_number' => $lockedOrder->order_number,'creation_key'=>(string)Str::uuid()],
+                'status' => PaymentAttemptStatus::Creating,
+                'metadata' => [
+                    'order_number' => $lockedOrder->order_number,
+                    'creation_key' => (string) Str::uuid(),
+                    'first_provider_attempt_at' => $now,
+                    'last_provider_attempt_at' => $now,
+                    'creation_claimed_at' => $now,
+                    'credential_fingerprint' => $this->provider->credentialFingerprint(),
+                ],
             ]);
+
+            return [$created, true];
         }, 3);
 
+        if ($payment->status === PaymentAttemptStatus::ReviewRequired) {
+            throw new RuntimeException('This payment attempt requires manual provider review.');
+        }
         if ($payment->provider_payment_id) {
+            return $payment;
+        }
+        if (! $ownsCreation) {
             return $payment;
         }
 
         try {
             $order = Order::query()->findOrFail($order->id);
-            $creationKey=(string)($payment->metadata['creation_key']??'');
-            if($creationKey==='')throw new RuntimeException('Payment attempt has no creation idempotency key.');
+            $creationKey = (string) ($payment->metadata['creation_key'] ?? '');
+            if ($creationKey === '') {
+                throw new RuntimeException('Payment attempt has no creation idempotency key.');
+            }
             $remote = $this->provider->create($order, $redirectUrl, $webhookUrl, $creationKey);
             $this->assertMatches($order, $remote);
-            $payment->update([
-                'provider_payment_id' => $remote->id,
-                'method' => $remote->method,
-                'status' => $this->mapStatus($remote->status),
-                'provider_created_at' => now(),
-                'metadata' => ['order_number' => $order->order_number, 'creation_key'=>$creationKey, 'checkout_url' => $remote->checkoutUrl],
-            ]);
-            $order->update(['payment_status' => PaymentStatus::Pending]);
-
-            return $payment->refresh();
         } catch (\Throwable $exception) {
-            $uncertain=! ($exception instanceof ProviderOperationException) || $exception->outcomeUncertain;
-            $metadata=$payment->metadata??[];
-            $metadata['last_creation_error']=['type'=>$exception::class,'at'=>now()->toIso8601String(),'outcome_uncertain'=>$uncertain];
-            $payment->update(['status'=>$uncertain?PaymentAttemptStatus::Created:PaymentAttemptStatus::Failed,'failed_at'=>$uncertain?null:now(),'metadata'=>$metadata]);
+            $uncertain = ! ($exception instanceof ProviderOperationException) || $exception->outcomeUncertain;
+            $this->persistCreationFailure($payment, $exception, $uncertain);
 
             Log::warning('Payment provider creation failed', [
                 'operation' => 'payment_create',
@@ -105,11 +149,13 @@ class PaymentService
                 'provider' => $payment->provider,
                 'provider_payment_id' => $payment->provider_payment_id,
                 'exception_type' => $exception::class,
-                'outcome_uncertain'=>$uncertain,
+                'outcome_uncertain' => $uncertain,
             ]);
 
             throw $exception;
         }
+
+        return $this->persistCreationSuccess($payment, $remote);
     }
 
     public function sync(Payment $payment, string $eventType = 'provider_sync'): PaymentSyncResult
@@ -127,8 +173,8 @@ class PaymentService
     private function apply(Payment $payment, ProviderPayment $remote, string $eventType): PaymentSyncResult
     {
         return DB::transaction(function () use ($payment, $remote, $eventType): PaymentSyncResult {
+            $order = Order::query()->whereKey($payment->order_id)->lockForUpdate()->firstOrFail();
             $locked = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
-            $order = Order::query()->whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
             $new = $this->mapStatus($remote->status);
             $key = hash('sha256', implode('|', [$locked->provider, $remote->id, $new->value]));
 
@@ -194,6 +240,9 @@ class PaymentService
             if (! $item->variant_id) {
                 throw new RuntimeException('Cannot commit stock for an order item without its variant.');
             }
+            if ($item->reservation_status !== 'reserved') {
+                throw new RuntimeException('Order does not own an active inventory reservation.');
+            }
 
             $inventory = Inventory::query()->where('variant_id', $item->variant_id)->lockForUpdate()->firstOrFail();
             if ($inventory->quantity_reserved < $item->quantity || $inventory->quantity_on_hand < $item->quantity) {
@@ -204,6 +253,7 @@ class PaymentService
             $inventory->quantity_on_hand -= $item->quantity;
             $inventory->assertConsistent();
             $inventory->save();
+            $item->update(['reservation_status' => 'committed']);
             InventoryMovement::query()->create([
                 'variant_id' => $item->variant_id,
                 'type' => InventoryMovementType::Order,
@@ -238,16 +288,20 @@ class PaymentService
             if (! $item->variant_id) {
                 continue;
             }
+            if ($item->reservation_status !== 'reserved') {
+                continue;
+            }
             $inventory = Inventory::query()->where('variant_id', $item->variant_id)->lockForUpdate()->first();
             if (! $inventory) {
                 continue;
             }
-            $release = min($item->quantity, $inventory->quantity_reserved);
-            if ($release > 0) {
-                $inventory->quantity_reserved -= $release;
-                $inventory->assertConsistent();
-                $inventory->save();
+            if ($inventory->quantity_reserved < $item->quantity) {
+                throw new RuntimeException('The order inventory reservation is inconsistent.');
             }
+            $inventory->quantity_reserved -= $item->quantity;
+            $inventory->assertConsistent();
+            $inventory->save();
+            $item->update(['reservation_status' => 'released']);
         }
 
         $from = $order->order_status->value;
@@ -273,10 +327,119 @@ class PaymentService
                 $inventory->quantity_reserved += $item->quantity;
                 $inventory->assertConsistent();
                 $inventory->save();
+                $item->update(['reservation_status' => 'reserved']);
             }
+        } else {
+            $this->assertReservationOwnership($order);
         }
 
         $order->update(['order_status' => OrderStatus::PendingPayment, 'payment_status' => PaymentStatus::Pending, 'cancelled_at' => null]);
+    }
+
+    private function assertReservationOwnership(Order $order): void
+    {
+        $order->loadMissing('items');
+        if ($order->items->contains(fn ($item): bool => $item->reservation_status !== 'reserved')) {
+            throw new RuntimeException('Order does not own an active inventory reservation.');
+        }
+    }
+
+    private function retryDeadlinePassed(array $metadata): bool
+    {
+        $firstAttempt = data_get($metadata, 'first_provider_attempt_at');
+        if (! is_string($firstAttempt)) {
+            return false;
+        }
+
+        return now()->greaterThanOrEqualTo(Carbon::parse($firstAttempt)->addMinutes(
+            max(1, min(55, (int) config('payments.creation_retry_minutes', 45)))
+        ));
+    }
+
+    private function requireReview(Payment $payment, array $metadata, string $reason): Payment
+    {
+        $metadata['review_required_at'] ??= now()->toIso8601String();
+        $metadata['review_reason'] = $reason;
+        unset($metadata['creation_claimed_at']);
+        $payment->update(['status' => PaymentAttemptStatus::ReviewRequired, 'metadata' => $metadata]);
+
+        return $payment->refresh();
+    }
+
+    private function persistCreationSuccess(Payment $payment, ProviderPayment $remote): Payment
+    {
+        [$saved, $cancelled] = DB::transaction(function () use ($payment, $remote): array {
+            $order = Order::query()->whereKey($payment->order_id)->lockForUpdate()->firstOrFail();
+            $locked = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            $this->assertMatches($order, $remote);
+            $metadata = $locked->metadata ?? [];
+
+            if ($locked->provider_payment_id !== null && $locked->provider_payment_id !== $remote->id) {
+                return [$this->requireReview($locked, $metadata, 'conflicting_provider_payment_id'), false];
+            }
+            if ($locked->status === PaymentAttemptStatus::Paid) {
+                return [$locked, false];
+            }
+
+            unset($metadata['creation_claimed_at'], $metadata['last_creation_error']);
+            $metadata['checkout_url'] = $remote->checkoutUrl;
+            $metadata['provider_result_saved_at'] = now()->toIso8601String();
+            $cancelled = $order->order_status === OrderStatus::Cancelled;
+            if ($cancelled) {
+                $metadata['review_required_at'] ??= now()->toIso8601String();
+                $metadata['review_reason'] = 'provider_created_after_order_cancelled';
+            }
+            $locked->update([
+                'provider_payment_id' => $remote->id,
+                'method' => $remote->method,
+                'status' => $cancelled ? PaymentAttemptStatus::ReviewRequired : $this->mapStatus($remote->status),
+                'provider_created_at' => $locked->provider_created_at ?: now(),
+                'metadata' => $metadata,
+            ]);
+            if (! $cancelled) {
+                $order->update(['payment_status' => PaymentStatus::Pending]);
+            }
+
+            return [$locked->refresh(), $cancelled];
+        }, 3);
+
+        if ($cancelled) {
+            throw new RuntimeException('Provider payment was created after the order was cancelled; manual review is required.');
+        }
+        if ($saved->status === PaymentAttemptStatus::ReviewRequired) {
+            throw new RuntimeException('Conflicting provider payment identifiers require manual review.');
+        }
+
+        return $saved;
+    }
+
+    private function persistCreationFailure(Payment $payment, \Throwable $exception, bool $uncertain): void
+    {
+        DB::transaction(function () use ($payment, $exception, $uncertain): void {
+            $order = Order::query()->whereKey($payment->order_id)->lockForUpdate()->firstOrFail();
+            $locked = Payment::query()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            $metadata = $locked->metadata ?? [];
+
+            if ($locked->provider_payment_id !== null || in_array($locked->status, [PaymentAttemptStatus::Paid, PaymentAttemptStatus::ReviewRequired], true)) {
+                $metadata['ignored_stale_creation_error'] = ['type' => $exception::class, 'at' => now()->toIso8601String(), 'outcome_uncertain' => $uncertain];
+                $locked->update(['metadata' => $metadata]);
+
+                return;
+            }
+
+            unset($metadata['creation_claimed_at']);
+            $metadata['last_creation_error'] = ['type' => $exception::class, 'at' => now()->toIso8601String(), 'outcome_uncertain' => $uncertain];
+            if ($this->retryDeadlinePassed($metadata) || $metadata['credential_fingerprint'] !== $this->provider->credentialFingerprint()) {
+                $this->requireReview($locked, $metadata, $this->retryDeadlinePassed($metadata) ? 'automatic_retry_deadline_elapsed' : 'provider_credential_changed');
+
+                return;
+            }
+            $locked->update([
+                'status' => $uncertain ? PaymentAttemptStatus::Created : PaymentAttemptStatus::Failed,
+                'failed_at' => $uncertain ? null : ($locked->failed_at ?: now()),
+                'metadata' => $metadata,
+            ]);
+        }, 3);
     }
 
     private function assertMatches(Order $order, ProviderPayment $remote): void

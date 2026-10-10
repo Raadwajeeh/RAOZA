@@ -21,25 +21,33 @@ class MolliePaymentProvider implements PaymentProvider
         return 'mollie';
     }
 
+    public function credentialFingerprint(): string
+    {
+        return hash('sha256', $this->name().'|'.(string) config('payments.mollie.api_key'));
+    }
+
     public function create(Order $order, string $redirectUrl, string $webhookUrl, string $idempotencyKey): ProviderPayment
     {
         try {
-            $json = $this->client()->withHeader('Idempotency-Key',$idempotencyKey)->post('/payments', [
+            $json = $this->client()->withHeader('Idempotency-Key', $idempotencyKey)->post('/payments', [
                 'amount' => ['currency' => $order->currency, 'value' => $this->decimal($order->total_amount)],
                 'description' => 'RAOZA '.$order->order_number,
                 'redirectUrl' => $redirectUrl,
                 'webhookUrl' => $webhookUrl,
                 'metadata' => ['order_number' => $order->order_number],
             ])->throw()->json();
-            if (! is_array($json)) throw new RuntimeException('Mollie returned an invalid payment response.');
+            if (! is_array($json)) {
+                throw new RuntimeException('Mollie returned an invalid payment response.');
+            }
+
             return $this->mapPayment($json);
         } catch (ConnectionException $exception) {
-            throw new ProviderOperationException('Payment provider communication failed; retry the same payment attempt.',true,$exception);
+            throw new ProviderOperationException('Payment provider communication failed; retry the same payment attempt.', true, $exception);
         } catch (RequestException $exception) {
-            $status=$exception->response->status();
-            throw new ProviderOperationException('Payment provider creation failed.', $status>=500||in_array($status,[409,429],true), $exception);
+            $status = $exception->response->status();
+            throw new ProviderOperationException('Payment provider creation failed.', $status >= 500 || in_array($status, [409, 429], true), $exception);
         } catch (RuntimeException $exception) {
-            throw new ProviderOperationException('Payment provider returned an invalid response; retry the same payment attempt.',true,$exception);
+            throw new ProviderOperationException('Payment provider returned an invalid response; retry the same payment attempt.', true, $exception);
         }
     }
 

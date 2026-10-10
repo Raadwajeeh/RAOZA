@@ -6,8 +6,8 @@ use App\Domain\Commerce\Enums\PaymentStatus;
 use App\Domain\Payments\Contracts\PaymentProvider;
 use App\Domain\Payments\Enums\PaymentAttemptStatus;
 use App\Domain\Payments\Models\Payment;
-use App\Domain\Payments\Services\PaymentSyncCoordinator;
 use App\Domain\Payments\Services\PaymentService;
+use App\Domain\Payments\Services\PaymentSyncCoordinator;
 use App\Domain\Returns\Enums\RefundStatus;
 use App\Domain\Returns\Models\Refund;
 use App\Domain\Returns\Services\RefundService;
@@ -32,8 +32,9 @@ class CommerceReconciliationService
         $uncertainIds = Payment::query()
             ->where('provider', $this->provider->name())
             ->whereNull('provider_payment_id')
-            ->where('status', PaymentAttemptStatus::Created->value)
-            ->where('metadata->last_creation_error->outcome_uncertain', true)
+            ->where(function ($query): void {
+                $query->whereIn('status', [PaymentAttemptStatus::Creating->value, PaymentAttemptStatus::Created->value]);
+            })
             ->whereHas('order', fn ($query) => $query->whereIn('payment_status', [
                 PaymentStatus::Unpaid->value,
                 PaymentStatus::Pending->value,

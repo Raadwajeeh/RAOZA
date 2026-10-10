@@ -13,25 +13,49 @@ use App\Domain\Returns\Models\Refund;
 final class FakePaymentProvider implements PaymentProvider
 {
     public string $status = 'open';
+
     public string $id = 'tr_test_payment';
+
     public ?int $amount = null;
+
     public ?string $currency = null;
+
     public ?string $orderNumber = null;
+
     public int $createCalls = 0;
+
     public array $creationKeys = [];
+
     public ?ProviderOperationException $paymentCreateException = null;
+
+    public string $credential = 'test-credential-a';
+
+    public $beforePaymentCreate = null;
+
     public int $fetchCalls = 0;
+
     public string $refundStatus = 'pending';
+
     public string $refundId = 're_test_refund';
+
     public ?int $refundAmount = null;
+
     public ?string $refundCurrency = null;
+
     public ?string $refundPaymentId = null;
+
     public ?string $refundReference = null;
+
     public int $createRefundCalls = 0;
+
     public int $fetchRefundCalls = 0;
+
     public int $findRefundCalls = 0;
+
     public ?ProviderOperationException $refundCreateException = null;
+
     public ?ProviderOperationException $refundFetchException = null;
+
     /** @var array<string, ProviderRefund> */
     public array $remoteRefunds = [];
 
@@ -40,11 +64,21 @@ final class FakePaymentProvider implements PaymentProvider
         return 'mollie';
     }
 
+    public function credentialFingerprint(): string
+    {
+        return hash('sha256', $this->name().'|'.$this->credential);
+    }
+
     public function create(Order $order, string $redirectUrl, string $webhookUrl, string $idempotencyKey): ProviderPayment
     {
         $this->createCalls++;
         $this->creationKeys[] = $idempotencyKey;
-        if ($this->paymentCreateException) throw $this->paymentCreateException;
+        if (is_callable($this->beforePaymentCreate)) {
+            ($this->beforePaymentCreate)($order, $idempotencyKey);
+        }
+        if ($this->paymentCreateException) {
+            throw $this->paymentCreateException;
+        }
 
         return $this->payment($order);
     }

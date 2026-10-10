@@ -35,6 +35,7 @@ final class PendingOrderExpirationService
                     return false;
                 }
                 $this->cancellations->cancel($order, null, 'reservation_window_expired');
+
                 return true;
             }, 3);
             $summary[$expired ? 'expired' : 'skipped']++;
@@ -66,16 +67,17 @@ final class PendingOrderExpirationService
             }
 
             if ($payment->provider_payment_id !== null && in_array($payment->status, [
+                PaymentAttemptStatus::Creating,
                 PaymentAttemptStatus::Created,
                 PaymentAttemptStatus::Open,
                 PaymentAttemptStatus::Pending,
                 PaymentAttemptStatus::Authorized,
+                PaymentAttemptStatus::ReviewRequired,
             ], true)) {
                 return true;
             }
 
-            return $payment->status === PaymentAttemptStatus::Created
-                && (bool) data_get($payment->metadata, 'last_creation_error.outcome_uncertain', false);
+            return in_array($payment->status, [PaymentAttemptStatus::Creating, PaymentAttemptStatus::Created, PaymentAttemptStatus::ReviewRequired], true);
         });
     }
 }

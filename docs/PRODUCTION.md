@@ -75,7 +75,9 @@ Inspect the exception and job type before retrying. Transactional mail and other
 
 ## Scheduler and reconciliation
 
-The application schedules `commerce:reconcile --limit=50` and `commerce:expire-pending-orders --limit=100` every five minutes. Reconciliation also retries uncertain payment-create outcomes with the original stable idempotency key. Expiry cancels only old, unpaid pending orders without provider state requiring reconciliation and releases each reservation exactly once. Both use ten-minute overlap locks and idempotent transactional services. The reservation window is configured with `PENDING_ORDER_RESERVATION_MINUTES` (30 minutes by default); it is an internal safety window, not a customer-facing promise. The first deployment assumes one application scheduler host.
+The application schedules `commerce:reconcile --limit=50` and `commerce:expire-pending-orders --limit=100` every five minutes. Reconciliation retries uncertain payment-create outcomes with the original stable idempotency key for at most 45 minutes, safely below Mollie's documented one-hour cache. Expiry cancels only old, unpaid pending orders without provider state requiring reconciliation and releases each owned reservation exactly once. Both use ten-minute overlap locks and idempotent transactional services. The reservation window is configured with `PENDING_ORDER_RESERVATION_MINUTES` (30 minutes by default); it is an internal safety window, not a customer-facing promise. The first deployment assumes one application scheduler host.
+
+If the retry deadline expires, provider credentials change, or provider identities conflict, the payment becomes `review_required` and inventory remains protected because remote payment absence has not been proven. Run `php artisan commerce:payment-uncertainty-report`. Resolve each attempt directly against Mollie using its order number, creation key, timestamps, and sanitized logs. Do not release inventory, retry creation, or create a replacement payment until the original remote outcome is authoritatively established.
 
 Configure one system cron entry, not one entry per task:
 
@@ -89,6 +91,7 @@ Inspect and operate it with:
 php artisan schedule:list
 php artisan commerce:reconcile --limit=50
 php artisan commerce:expire-pending-orders --limit=100
+php artisan commerce:payment-uncertainty-report
 ```
 
 A non-zero reconciliation exit means at least one payment/refund could not be reconciled. Review sanitized logs and provider state, fix the cause, then rerun. Alert on repeated non-zero runs.
