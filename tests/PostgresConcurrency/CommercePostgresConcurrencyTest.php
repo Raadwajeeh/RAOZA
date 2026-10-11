@@ -87,8 +87,10 @@ class CommercePostgresConcurrencyTest extends TestCase
         $sync = $this->startWorker('sync_start', ['payment_id' => $payment->id, 'provider_id' => 'tr_pg_cancel_sync', 'provider_status' => 'paid', 'event_type' => 'same_paid_event']);
         $this->waitFor($cancel, 'ready');
         $this->waitFor($sync, 'ready');
-        $cancelResult = $this->releaseAndFinish($cancel);
-        $syncResult = $this->releaseAndFinish($sync);
+        $this->release($cancel);
+        $this->release($sync);
+        $cancelResult = $this->finish($cancel);
+        $syncResult = $this->finish($sync);
 
         $this->assertFalse($cancelResult['ok']);
         $this->assertTrue($syncResult['ok'], $syncResult['message'] ?? 'sync failed');
@@ -130,7 +132,9 @@ class CommercePostgresConcurrencyTest extends TestCase
         $b = $this->startWorker('checkout_start', ['cart_id' => $second->id, 'data' => $this->checkoutData($fixture['shipping']->id, ['email' => 'b@example.test'])]);
         $this->waitFor($a, 'ready');
         $this->waitFor($b, 'ready');
-        $results = [$this->releaseAndFinish($a), $this->releaseAndFinish($b)];
+        $this->release($a);
+        $this->release($b);
+        $results = [$this->finish($a), $this->finish($b)];
 
         $this->assertSame(1, collect($results)->where('ok', true)->count());
         $this->assertSame(1, collect($results)->where('ok', false)->count());
@@ -148,7 +152,9 @@ class CommercePostgresConcurrencyTest extends TestCase
         $b = $this->startWorker('checkout_start', ['cart_id' => $second->id, 'data' => $this->checkoutData($fixture['shipping']->id, ['email' => 'b@example.test', 'discount_code' => 'FINAL'])]);
         $this->waitFor($a, 'ready');
         $this->waitFor($b, 'ready');
-        $results = [$this->releaseAndFinish($a), $this->releaseAndFinish($b)];
+        $this->release($a);
+        $this->release($b);
+        $results = [$this->finish($a), $this->finish($b)];
 
         $this->assertSame(1, collect($results)->where('ok', true)->count());
         $this->assertSame(1, DB::table('discount_usages')->where('discount_id', $discount->id)->count());
@@ -184,7 +190,9 @@ class CommercePostgresConcurrencyTest extends TestCase
         $b = $this->startWorker('sync_start', $payload);
         $this->waitFor($a, 'ready');
         $this->waitFor($b, 'ready');
-        $results = [$this->releaseAndFinish($a), $this->releaseAndFinish($b)];
+        $this->release($a);
+        $this->release($b);
+        $results = [$this->finish($a), $this->finish($b)];
 
         $this->assertSame(2, collect($results)->where('ok', true)->count());
         $this->assertSame(1, collect($results)->filter(fn ($r) => ($r['result']['became_paid'] ?? false) === true)->count());
@@ -204,7 +212,9 @@ class CommercePostgresConcurrencyTest extends TestCase
         $expiry = $this->startWorker('expire_start', []);
         $this->waitFor($retry, 'ready');
         $this->waitFor($expiry, 'ready');
-        $results = [$this->releaseAndFinish($retry), $this->releaseAndFinish($expiry)];
+        $this->release($retry);
+        $this->release($expiry);
+        $results = [$this->finish($retry), $this->finish($expiry)];
 
         $this->assertSame(2, collect($results)->where('ok', true)->count());
         $this->assertSame(OrderStatus::PendingPayment, $fixture['order']->fresh()->order_status);
