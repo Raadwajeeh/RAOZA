@@ -48,6 +48,12 @@ final class InfrastructureReliabilityTest extends TestCase
         $this->assertTrue(Schema::hasTable('failed_jobs'));
     }
 
+    public function test_postgresql_tls_mode_is_environment_configurable(): void
+    {
+        $this->assertArrayHasKey('sslmode', config('database.connections.pgsql'));
+        $this->assertSame('prefer', config('database.connections.pgsql.sslmode'));
+    }
+
     public function test_reconciliation_is_scheduled_every_five_minutes_without_overlap(): void
     {
         $event = collect(app(Schedule::class)->events())

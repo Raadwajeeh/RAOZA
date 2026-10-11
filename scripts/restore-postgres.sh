@@ -24,7 +24,11 @@ if [[ -f "$BACKUP.sha256" ]]; then
   (cd "$(dirname "$BACKUP")" && sha256sum -c "$(basename "$BACKUP").sha256")
 fi
 export PGPASSWORD="$DB_PASSWORD"
+export PGSSLMODE="${DB_SSLMODE:-require}"
+[[ -z "${DB_SSLROOTCERT:-}" ]] || export PGSSLROOTCERT="$DB_SSLROOTCERT"
+[[ -z "${DB_SSLCERT:-}" ]] || export PGSSLCERT="$DB_SSLCERT"
+[[ -z "${DB_SSLKEY:-}" ]] || export PGSSLKEY="$DB_SSLKEY"
 pg_restore --host="$DB_HOST" --port="$DB_PORT" --username="$DB_USERNAME" --dbname="$RESTORE_DB_DATABASE" --clean --if-exists --no-owner --no-acl "$BACKUP"
-unset PGPASSWORD
+unset PGPASSWORD PGSSLMODE PGSSLROOTCERT PGSSLCERT PGSSLKEY
 
 echo "Restore completed. Run application smoke tests before reopening traffic."

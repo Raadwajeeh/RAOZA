@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the RAOZA Laravel scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/raoza/current
+ExecStart=/usr/bin/php artisan schedule:run --no-interaction
+Environment=APP_ENV=production

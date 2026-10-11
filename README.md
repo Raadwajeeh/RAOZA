@@ -32,4 +32,6 @@ npm run build
 
 Use `php artisan production:bootstrap <reviewed-manifest> --dry-run` before applying a reviewed catalog manifest. The command refuses demo mode and does not invent business settings, stock or secrets. Provision the first owner only from the server console with `admin:provision-owner`; emergency staff password recovery uses `admin:reset-password` and invalidates sessions.
 
+Use `.env.production.example` only as a sanitized host-secret checklist. Before a deployment boundary, `php artisan production:preflight` validates the resolved configuration without printing secrets; the final separately authorized Live gate adds `--require-live-services`. Neither command provisions infrastructure or contacts Mollie/mail providers.
+
 See [docs/PRODUCTION.md](docs/PRODUCTION.md), [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md), and [SECURITY.md](SECURITY.md). Production still requires owner-approved business/legal/catalog data and externally configured hosting, TLS, mail, Mollie Live, monitoring and backups.

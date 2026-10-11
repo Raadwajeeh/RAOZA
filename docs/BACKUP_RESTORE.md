@@ -11,11 +11,28 @@ Do not back up caches, logs, sessions, queued runtime data as a primary recovery
 
 ## Production strategy
 
-Run `scripts/backup-postgres.sh` from a protected scheduler with PostgreSQL credentials supplied by the host secret store and an absolute `BACKUP_DIR` outside the application release and web root. The script creates a custom-format `pg_dump`, a SHA-256 checksum and deletes local files older than `BACKUP_RETENTION_DAYS` (default 14).
+Run `scripts/backup-postgres.sh` from a protected scheduler with PostgreSQL credentials/TLS settings supplied by the host secret store and an absolute `BACKUP_DIR` outside the application release and web root. The script maps `DB_SSLMODE`, `DB_SSLROOTCERT`, `DB_SSLCERT` and `DB_SSLKEY` to libpq for `pg_dump`, creates a custom-format dump, creates and rechecks a SHA-256 checksum, verifies that `pg_restore` can read the archive table of contents, and deletes only matching local backup files older than `BACKUP_RETENTION_DAYS` (default 14).
+
+Those checks detect transfer corruption and an unreadable archive; they do not prove that the data is complete or restorable as an application. Reliability requires a successful isolated restore plus application/data verification.
 
 Copy database dumps and persistent media to access-restricted, encrypted off-host storage. The destination can be S3-compatible or another managed backup system; no provider is assumed. Encrypt in transit and at rest, use separate least-privilege credentials, enable object versioning/immutability where available, and keep credentials outside Git. A practical starting policy is 14 daily copies plus 8 weekly copies, adjusted after the business sets recovery objectives and privacy retention requirements.
 
 Backups contain personal and order data. Limit operator access, audit restore/download access, and delete expired copies under the approved retention policy. Never place dumps under `public/` or commit them.
+
+The owner must approve recovery objectives. Until then, use these planning targets rather than promises: database backup at least daily and immediately before migrations, off-host transfer immediately after creation, an RPO no better than the actual backup/PITR interval, and an RTO measured by a timed restore drill. If losing up to one day of paid orders is unacceptable, select managed PostgreSQL point-in-time recovery and document/test the provider-specific restore path. Media backups need a matching schedule; database references and media can otherwise recover to different points.
+
+## Migration compatibility and preservation gate
+
+Before a production migration, record and review:
+
+- exact release SHA, pending migration filenames and framework/PHP/PostgreSQL versions;
+- whether each statement takes blocking locks, rewrites a large table, drops/renames data or assumes the new code is already active;
+- compatibility with both the outgoing and incoming code during the traffic-control window;
+- representative counts and financial/inventory aggregates: orders, payments by status, refunds, inventory on-hand/reserved, movements, discount usages and product media;
+- verified backup path, checksum, off-host-copy status and latest successful restore-drill evidence;
+- free database/disk capacity and an operator-approved abort threshold.
+
+After migration, compare the recorded counts/aggregates, inspect `migrate:status`, verify no unexpected status changes or duplicate movements, and retain the evidence with the release record. Schema rollback is not the default once new orders can exist.
 
 ## Isolated restore drill
 
@@ -39,3 +56,5 @@ Never restore over the local development or production database. Use an isolated
 9. Record dump timestamp, recovery duration, checks, discrepancies and operator. Destroy the isolated database/media only after evidence is retained and the exact temporary targets are confirmed.
 
 The restore script refuses normal application environments, refuses restoring over `DB_DATABASE`, and requires the target suffix `_restore_verify`. It does not create the target database. Its `--clean --if-exists` operation is destructive only inside that explicitly isolated target.
+
+Record every drill: backup/checksum identifiers, source recovery point, isolated target identity, operator, start/end time, PostgreSQL versions, row/aggregate comparisons, media checks, application checks, discrepancies and destruction confirmation. A failed or overdue drill is a launch/operations blocker, not a documentation exception.
