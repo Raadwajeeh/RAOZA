@@ -181,6 +181,28 @@ class CommerceRaceHardeningTest extends TestCase
         app(PaymentService::class)->createAttempt($fixture['order']->fresh(), 'https://store.test/return', 'https://store.test/webhook');
     }
 
+    public function test_active_provider_payment_without_checkout_url_still_requires_owned_inventory(): void
+    {
+        $fixture = $this->checkoutOrder();
+        $fixture['order']->items()->update(['reservation_status' => 'released']);
+        $fixture['inventories'][0]->update(['quantity_reserved' => 0]);
+        Payment::query()->create([
+            'order_id' => $fixture['order']->id, 'provider' => 'mollie', 'provider_payment_id' => 'tr_open_without_url',
+            'currency' => 'EUR', 'amount' => $fixture['order']->total_amount, 'status' => PaymentAttemptStatus::Open,
+            'metadata' => ['creation_key' => 'stable'],
+        ]);
+
+        try {
+            app(PaymentService::class)->createAttempt($fixture['order']->fresh(), 'https://store.test/return', 'https://store.test/webhook');
+            $this->fail('An active provider payment reused released inventory.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('does not own', $exception->getMessage());
+        }
+
+        $this->assertSame(0, $this->provider->createCalls);
+        $this->assertSame(PaymentAttemptStatus::Open, $fixture['order']->payments()->firstOrFail()->status);
+    }
+
     public function test_recovery_deadline_and_credential_rotation_require_review_without_another_create(): void
     {
         foreach (['deadline', 'credential'] as $case) {

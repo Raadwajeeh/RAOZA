@@ -65,6 +65,8 @@ class PaymentService
                     return [$active, false];
                 }
                 if ($active->provider_payment_id) {
+                    $this->assertReservationOwnership($lockedOrder);
+
                     return [$active, false];
                 }
 
