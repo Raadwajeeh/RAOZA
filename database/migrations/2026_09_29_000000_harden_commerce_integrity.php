@@ -20,7 +20,15 @@ return new class extends Migration
             DB::statement("CREATE UNIQUE INDEX analytics_order_purchase_unique ON analytics_events (order_id) WHERE event_name = 'purchase' AND order_id IS NOT NULL");
         }
 
-        if ($driver === 'pgsql') {
+        if ($driver === 'mysql') {
+            DB::statement('ALTER TABLE discounts ADD code_normalized VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin GENERATED ALWAYS AS (UPPER(code)) STORED');
+            DB::statement('CREATE UNIQUE INDEX discounts_code_upper_unique ON discounts (code_normalized)');
+            DB::statement('CREATE UNIQUE INDEX analytics_order_purchase_unique ON analytics_events (order_id, event_name)');
+            DB::unprepared("CREATE TRIGGER analytics_order_events_consistent_insert BEFORE INSERT ON analytics_events FOR EACH ROW BEGIN IF NEW.order_id IS NOT NULL AND NEW.event_name <> 'purchase' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'order_id is reserved for purchase events'; END IF; END");
+            DB::unprepared("CREATE TRIGGER analytics_order_events_consistent_update BEFORE UPDATE ON analytics_events FOR EACH ROW BEGIN IF NEW.order_id IS NOT NULL AND NEW.event_name <> 'purchase' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'order_id is reserved for purchase events'; END IF; END");
+        }
+
+        if (in_array($driver, ['pgsql', 'mysql'], true)) {
             DB::statement('ALTER TABLE inventories ADD CONSTRAINT inventories_quantities_consistent CHECK (quantity_on_hand >= 0 AND quantity_reserved >= 0 AND quantity_reserved <= quantity_on_hand)');
             DB::statement('ALTER TABLE orders ADD CONSTRAINT orders_money_consistent CHECK (discount_amount <= subtotal_amount AND total_amount = subtotal_amount - discount_amount + shipping_amount AND tax_amount <= total_amount AND shipping_tax_amount <= shipping_amount AND shipping_tax_amount <= tax_amount)');
             DB::statement('ALTER TABLE order_items ADD CONSTRAINT order_items_money_consistent CHECK (subtotal_amount = unit_price * quantity AND discount_amount <= subtotal_amount AND total_amount = subtotal_amount - discount_amount AND tax_amount <= total_amount)');
@@ -32,7 +40,7 @@ return new class extends Migration
     {
         $driver = DB::getDriverName();
 
-        if ($driver === 'pgsql') {
+        if (in_array($driver, ['pgsql', 'mysql'], true)) {
             DB::statement('ALTER TABLE refunds DROP CONSTRAINT IF EXISTS refunds_amount_positive');
             DB::statement('ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_money_consistent');
             DB::statement('ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_money_consistent');
@@ -42,6 +50,19 @@ return new class extends Migration
         if (in_array($driver, ['pgsql', 'sqlite'], true)) {
             DB::statement('DROP INDEX IF EXISTS analytics_order_purchase_unique');
             DB::statement('DROP INDEX IF EXISTS discounts_code_upper_unique');
+        }
+
+        if ($driver === 'mysql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS analytics_order_events_consistent_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS analytics_order_events_consistent_insert');
+            DB::statement('CREATE INDEX analytics_events_order_id_foreign ON analytics_events (order_id)');
+            Schema::table('analytics_events', function (Blueprint $table): void {
+                $table->dropUnique('analytics_order_purchase_unique');
+            });
+            Schema::table('discounts', function (Blueprint $table): void {
+                $table->dropUnique('discounts_code_upper_unique');
+                $table->dropColumn('code_normalized');
+            });
         }
 
         Schema::table('orders', function (Blueprint $table): void {

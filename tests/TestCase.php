@@ -17,6 +17,48 @@ abstract class TestCase extends BaseTestCase
 
     public function createApplication(): Application
     {
+        if (getenv('RAOZA_MARIADB_TEST_OPT_IN') === 'phase7d2-disposable') {
+            $required = [
+                'APP_ENV' => 'testing',
+                'DB_CONNECTION' => 'mysql',
+                'DB_HOST' => '127.0.0.1',
+            ];
+            foreach ($required as $name => $value) {
+                if (getenv($name) !== $value) {
+                    throw new RuntimeException("Unsafe MariaDB test configuration refused: {$name} must equal {$value}.");
+                }
+            }
+            $database = (string) getenv('DB_DATABASE');
+            $username = (string) getenv('DB_USERNAME');
+            if (! str_starts_with($database, 'raoza_phase7d2_') || ! str_starts_with($username, 'raoza_phase7d2_')) {
+                throw new RuntimeException('Unsafe MariaDB test configuration refused: dedicated Phase 7D.2 database and user names are required.');
+            }
+            if (getenv('DB_URL') !== '' || getenv('DATABASE_URL') !== '') {
+                throw new RuntimeException('Unsafe MariaDB test configuration refused: DB_URL and DATABASE_URL must be explicitly empty.');
+            }
+
+            $app = parent::createApplication();
+            $identity = DB::selectOne(
+                "select database() as database_name, substring_index(current_user(), '@', 1) as username, @@port as port, version() as version, @@default_storage_engine as engine"
+            );
+            if ($identity->database_name !== $database
+                || $identity->username !== $username
+                || (string) $identity->port !== (string) getenv('DB_PORT')
+                || ! str_contains(strtolower((string) $identity->version), 'mariadb')
+                || strcasecmp((string) $identity->engine, 'InnoDB') !== 0) {
+                throw new RuntimeException('MariaDB test connection identity validation failed.');
+            }
+
+            $grants = collect(DB::select('show grants for current_user()'))
+                ->flatMap(fn (object $row): array => array_values((array) $row))
+                ->implode("\n");
+            if (preg_match('/GRANT ALL PRIVILEGES ON \*\.\*|WITH GRANT OPTION|SUPER|FILE/i', $grants)) {
+                throw new RuntimeException('Unsafe MariaDB test account privileges refused.');
+            }
+
+            return $app;
+        }
+
         if (getenv('RAOZA_POSTGRES_TEST_OPT_IN') === 'phase7b3-disposable') {
             $required = [
                 'APP_ENV' => 'testing',

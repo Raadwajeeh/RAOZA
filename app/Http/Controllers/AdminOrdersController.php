@@ -19,7 +19,8 @@ class AdminOrdersController
     {
         $query = Order::latest('placed_at');
         if ($request->filled('q')) {
-            $query->where(fn ($x) => $x->where('order_number', 'ilike', '%'.$request->q.'%')->orWhere('customer_email', 'ilike', '%'.$request->q.'%'));
+            $term = '%'.mb_strtolower(trim((string) $request->q)).'%';
+            $query->where(fn ($x) => $x->whereRaw('LOWER(order_number) LIKE ?', [$term])->orWhereRaw('LOWER(customer_email) LIKE ?', [$term]));
         }
         foreach (['payment_status', 'fulfillment_status', 'order_status'] as $field) {
             if ($request->filled($field)) {
@@ -58,6 +59,6 @@ class AdminOrdersController
             'fulfillment_status' => $cancelled->fulfillment_status->value, 'reason' => $data['reason'],
         ]);
 
-        return back()->with('success','Unpaid order cancelled and reserved inventory released.');
+        return back()->with('success', 'Unpaid order cancelled and reserved inventory released.');
     }
 }

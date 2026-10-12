@@ -10,14 +10,16 @@ final class ProductionPreflight extends Command
 {
     protected $signature = 'production:preflight
         {--require-live-services : Require a Mollie Live key rather than a test key}
-        {--skip-database : Validate resolved configuration without querying PostgreSQL}';
+        {--skip-database : Validate resolved configuration without querying the selected database}';
 
     protected $description = 'Fail-closed validation of resolved production deployment configuration';
 
     public function handle(): int
     {
         $url = (string) config('app.url');
-        $database = config('database.connections.pgsql', []);
+        $canonicalUrl = (string) config('production.canonical_url');
+        $driver = (string) config('database.default');
+        $database = config("database.connections.{$driver}", []);
         $paymentKey = (string) config('payments.mollie.api_key');
         $mailer = (string) config('mail.default');
         $smtp = config('mail.mailers.smtp', []);
@@ -27,17 +29,20 @@ final class ProductionPreflight extends Command
         $checks = [
             'Application environment is production' => app()->environment('production'),
             'Debug mode is disabled' => config('app.debug') === false,
-            'Canonical URL is https://raoza.nl' => $url === 'https://raoza.nl',
+            'Canonical URL is the explicitly configured HTTPS URL' => $url === $canonicalUrl
+                && filter_var($url, FILTER_VALIDATE_URL) !== false
+                && parse_url($url, PHP_URL_SCHEME) === 'https'
+                && parse_url($url, PHP_URL_HOST) !== null,
             'Application key is present and not a template value' => $this->isConfiguredSecret((string) config('app.key')),
             'Release identifier is configured' => ! in_array((string) config('production.release'), ['', 'unknown', 'local', 'GIT_SHA_OR_RELEASE_ID'], true),
             'Trusted proxies are empty for a direct edge or explicitly allowlisted' => $proxies === []
                 || collect($proxies)->every(fn (string $proxy): bool => $this->validProxy($proxy)),
-            'PostgreSQL is the default database' => config('database.default') === 'pgsql',
-            'PostgreSQL application credentials are configured' => $this->isConfigured((string) ($database['host'] ?? ''))
+            'Selected database driver is supported' => in_array($driver, ['pgsql', 'mysql'], true),
+            'Database application credentials are configured' => $this->isConfigured((string) ($database['host'] ?? ''))
                 && $this->isConfigured((string) ($database['database'] ?? ''))
                 && $this->isConfigured((string) ($database['username'] ?? ''))
                 && $this->isConfiguredSecret((string) ($database['password'] ?? '')),
-            'PostgreSQL TLS verifies transport' => in_array((string) ($database['sslmode'] ?? ''), ['require', 'verify-ca', 'verify-full'], true),
+            'Database connection policy is hardened' => $this->databasePolicyIsHardened($driver, $database),
             'Database sessions are encrypted and secure' => config('session.driver') === 'database'
                 && config('session.encrypt') === true
                 && config('session.secure') === true
@@ -72,10 +77,9 @@ final class ProductionPreflight extends Command
 
         if (! $this->option('skip-database')) {
             try {
-                DB::select('select 1');
-                $checks['PostgreSQL connection is reachable'] = config('database.default') === 'pgsql';
+                $checks['Selected database is reachable and compatible'] = $this->databaseIsCompatible($driver);
             } catch (Throwable) {
-                $checks['PostgreSQL connection is reachable'] = false;
+                $checks['Selected database is reachable and compatible'] = false;
             }
         }
 
@@ -98,6 +102,56 @@ final class ProductionPreflight extends Command
     {
         return $this->isConfiguredSecret($value)
             && (str_starts_with($value, 'test_') || str_starts_with($value, 'live_'));
+    }
+
+    private function databasePolicyIsHardened(string $driver, array $database): bool
+    {
+        if ($driver === 'pgsql') {
+            return in_array((string) ($database['sslmode'] ?? ''), ['require', 'verify-ca', 'verify-full'], true);
+        }
+
+        if ($driver !== 'mysql') {
+            return false;
+        }
+
+        $host = strtolower((string) ($database['host'] ?? ''));
+        $localTransport = in_array($host, ['127.0.0.1', 'localhost', '::1'], true)
+            || $this->isConfigured((string) ($database['unix_socket'] ?? ''));
+        $tlsConfigured = array_key_exists(\PDO::MYSQL_ATTR_SSL_CA, (array) ($database['options'] ?? []));
+
+        return ($localTransport || $tlsConfigured)
+            && ($database['charset'] ?? null) === 'utf8mb4'
+            && in_array((string) ($database['collation'] ?? ''), ['utf8mb4_unicode_ci', 'utf8mb4_unicode_520_ci'], true)
+            && ($database['strict'] ?? false) === true
+            && ($database['engine'] ?? null) === 'InnoDB'
+            && strtoupper((string) ($database['isolation_level'] ?? '')) === 'READ COMMITTED'
+            && ($database['timezone'] ?? null) === '+00:00';
+    }
+
+    private function databaseIsCompatible(string $driver): bool
+    {
+        if ($driver === 'pgsql') {
+            DB::select('select 1');
+
+            return true;
+        }
+
+        if ($driver !== 'mysql') {
+            return false;
+        }
+
+        $identity = DB::selectOne('select version() as version, @@default_storage_engine as engine, @@session.time_zone as timezone, @@tx_isolation as isolation_level');
+        if (! str_contains(strtolower((string) ($identity->version ?? '')), 'mariadb')
+            || strcasecmp((string) ($identity->engine ?? ''), 'InnoDB') !== 0
+            || strtoupper((string) ($identity->isolation_level ?? '')) !== 'READ-COMMITTED'
+            || (string) ($identity->timezone ?? '') !== '+00:00') {
+            return false;
+        }
+
+        preg_match('/^(\d+)\.(\d+)\./', (string) $identity->version, $matches);
+
+        return isset($matches[1], $matches[2])
+            && version_compare($matches[1].'.'.$matches[2], '10.3', '>=');
     }
 
     private function validProxy(string $value): bool

@@ -1,6 +1,6 @@
 # RAOZA production runbook
 
-RAOZA is a single Laravel 12 application backed by PostgreSQL. The first production deployment uses database-backed queues, cache and sessions. Redis and distributed infrastructure are not required.
+RAOZA is a single Laravel 12 application backed by PostgreSQL or MariaDB. The first production deployment uses database-backed queues, cache and sessions. Redis and distributed infrastructure are not required. MariaDB-specific requirements and Hostinger gaps are recorded in [MARIADB.md](MARIADB.md).
 
 ## Recommended production architecture
 

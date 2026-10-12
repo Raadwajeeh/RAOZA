@@ -1,8 +1,45 @@
 <?php
+
 namespace App\Http\Controllers;
-use App\Domain\Admin\Services\AuditService; use App\Domain\Catalog\Models\ProductVariant; use App\Domain\Inventory\Enums\InventoryMovementType; use App\Domain\Inventory\Models\{Inventory,InventoryMovement}; use App\Domain\Inventory\Services\InventoryService; use Illuminate\Http\Request; use Illuminate\Validation\Rule; use Illuminate\Validation\ValidationException; use Inertia\Inertia;
-class AdminInventoryController {
- public function __construct(private InventoryService $inventory,private AuditService $audit){}
- public function index(Request $r){$q=Inventory::with(['variant.product'])->orderBy('quantity_on_hand');if($r->filled('q'))$q->whereHas('variant',fn($x)=>$x->where('sku','ilike','%'.$r->q.'%')->orWhereHas('product',fn($p)=>$p->where('name','ilike','%'.$r->q.'%')));return Inertia::render('Admin/Inventory/Index',['inventories'=>$q->paginate(30)->withQueryString(),'movements'=>InventoryMovement::with(['variant.product'])->latest('created_at')->limit(50)->get(),'filters'=>['q'=>$r->string('q')->toString()]]);}
- public function adjust(Request $r,ProductVariant $variant){$d=$r->validate(['delta'=>'required|integer|not_in:0','type'=>['required',Rule::in(['stock_received','damaged','manual_adjustment'])],'reason'=>'required|string|max:120','note'=>'nullable|string|max:500']);if($d['type']==='stock_received'&&$d['delta']<1)throw ValidationException::withMessages(['delta'=>'Stock received must add a positive quantity.']);if($d['type']==='damaged'&&$d['delta']>-1)throw ValidationException::withMessages(['delta'=>'Damaged stock must use a negative quantity.']);$before=$variant->inventory?->toArray();$note=$d['note']??null;$inv=$this->inventory->adjust($variant,$d['delta'],InventoryMovementType::from($d['type']),trim($d['reason'].($note?' — '.$note:'')),'admin_user',$r->user()->id);$this->audit->record($r,'inventory.adjusted',$inv,$before,$inv->toArray());return back()->with('success','Inventory adjusted and movement recorded.');}
+
+use App\Domain\Admin\Services\AuditService;
+use App\Domain\Catalog\Models\ProductVariant;
+use App\Domain\Inventory\Enums\InventoryMovementType;
+use App\Domain\Inventory\Models\Inventory;
+use App\Domain\Inventory\Models\InventoryMovement;
+use App\Domain\Inventory\Services\InventoryService;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+
+class AdminInventoryController
+{
+    public function __construct(private InventoryService $inventory, private AuditService $audit) {}
+
+    public function index(Request $r)
+    {
+        $q = Inventory::with(['variant.product'])->orderBy('quantity_on_hand');
+        if ($r->filled('q')) {
+            $term = '%'.mb_strtolower(trim((string) $r->q)).'%';
+            $q->whereHas('variant', fn ($x) => $x->whereRaw('LOWER(sku) LIKE ?', [$term])->orWhereHas('product', fn ($p) => $p->whereRaw('LOWER(name) LIKE ?', [$term])));
+        }
+
+return Inertia::render('Admin/Inventory/Index', ['inventories' => $q->paginate(30)->withQueryString(), 'movements' => InventoryMovement::with(['variant.product'])->latest('created_at')->limit(50)->get(), 'filters' => ['q' => $r->string('q')->toString()]]);
+    }
+
+    public function adjust(Request $r, ProductVariant $variant)
+    {
+        $d = $r->validate(['delta' => 'required|integer|not_in:0', 'type' => ['required', Rule::in(['stock_received', 'damaged', 'manual_adjustment'])], 'reason' => 'required|string|max:120', 'note' => 'nullable|string|max:500']);
+        if ($d['type'] === 'stock_received' && $d['delta'] < 1) {
+            throw ValidationException::withMessages(['delta' => 'Stock received must add a positive quantity.']);
+        }if ($d['type'] === 'damaged' && $d['delta'] > -1) {
+            throw ValidationException::withMessages(['delta' => 'Damaged stock must use a negative quantity.']);
+        }$before = $variant->inventory?->toArray();
+        $note = $d['note'] ?? null;
+        $inv = $this->inventory->adjust($variant, $d['delta'], InventoryMovementType::from($d['type']), trim($d['reason'].($note ? ' — '.$note : '')), 'admin_user', $r->user()->id);
+        $this->audit->record($r, 'inventory.adjusted', $inv, $before, $inv->toArray());
+
+        return back()->with('success','Inventory adjusted and movement recorded.');
+    }
 }

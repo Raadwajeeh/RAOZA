@@ -54,6 +54,19 @@ final class InfrastructureReliabilityTest extends TestCase
         $this->assertSame('prefer', config('database.connections.pgsql.sslmode'));
     }
 
+    public function test_mariadb_connection_defaults_are_explicit_and_hardened(): void
+    {
+        $connection = config('database.connections.mysql');
+
+        $this->assertSame('mysql', $connection['driver']);
+        $this->assertSame('utf8mb4', $connection['charset']);
+        $this->assertSame('utf8mb4_unicode_ci', $connection['collation']);
+        $this->assertTrue($connection['strict']);
+        $this->assertSame('InnoDB', $connection['engine']);
+        $this->assertSame('READ COMMITTED', $connection['isolation_level']);
+        $this->assertSame('+00:00', $connection['timezone']);
+    }
+
     public function test_reconciliation_is_scheduled_every_five_minutes_without_overlap(): void
     {
         $event = collect(app(Schedule::class)->events())

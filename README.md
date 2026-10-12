@@ -1,10 +1,10 @@
 # RAOZA
 
-RAOZA is a Laravel 12, React 19, Inertia and PostgreSQL e-commerce application for a six-product editorial apparel catalog. Money is stored as integer minor units; checkout totals, stock, payment state and permissions are server-authoritative.
+RAOZA is a Laravel 12, React 19 and Inertia e-commerce application supporting PostgreSQL and MariaDB for a six-product editorial apparel catalog. Money is stored as integer minor units; checkout totals, stock, payment state and permissions are server-authoritative.
 
 ## Local development
 
-Requirements: PHP 8.3+, Composer, Node.js/npm and PostgreSQL for normal local development.
+Requirements: PHP 8.3+, Composer, Node.js/npm and PostgreSQL for normal local development. MariaDB production compatibility and its isolated test profile are documented in [docs/MARIADB.md](docs/MARIADB.md).
 
 ```bash
 composer install

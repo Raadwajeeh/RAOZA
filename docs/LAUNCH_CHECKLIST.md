@@ -3,14 +3,14 @@
 Every item needs evidence, an accountable owner and a date. Example/seed content is not verified production content.
 
 ## Infrastructure
-- [ ] Production host and PostgreSQL provisioned
+- [ ] Production host and the selected PostgreSQL or MariaDB backend provisioned
 - [ ] `raoza.nl` DNS points to production
 - [ ] Owner decides whether `www.raoza.nl` exists; if it does, DNS and the certificate cover it before the HTTPS redirect is enabled
 - [ ] TLS/HTTPS active and renewal monitored
 - [ ] Staging and Production credentials are separate
 - [ ] Persistent media storage configured and backed up
 - [ ] Hosting region, data-processing terms, operator access and incident contact approved
-- [ ] PostgreSQL TLS uses `verify-full` or an owner-approved documented equivalent
+- [ ] Database transport uses verified TLS or an owner-approved documented local transport
 - [ ] Previous release retention and atomic code-switch mechanism rehearsed
 
 ## Application
