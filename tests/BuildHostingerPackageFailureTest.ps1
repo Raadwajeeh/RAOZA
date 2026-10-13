@@ -109,6 +109,9 @@ try {
         if ('storage/framework/cache/data/' -notin $entryNames -or 'bootstrap/cache/.gitignore' -notin $entryNames) {
             throw 'The ZIP does not preserve the required writable directory skeleton.'
         }
+        if ($entryNames | Where-Object { $_ -match '^storage/(app|framework|logs)/.+' -and $_ -notmatch '/$' -and $_ -notmatch '/\.gitignore$' }) {
+            throw 'The ZIP contains generated runtime storage files.'
+        }
     } finally {
         $zip.Dispose()
     }

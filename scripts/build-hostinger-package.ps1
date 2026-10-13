@@ -163,7 +163,13 @@ try {
             }
         }
         foreach ($directory in $writableDirectories) {
-            Assert-WritableDirectory -Path (Join-Path $stage $directory)
+            $directoryPath = Join-Path $stage $directory
+            if ($directory.StartsWith('storage\')) {
+                Get-ChildItem -LiteralPath $directoryPath -Force |
+                    Where-Object Name -ne '.gitignore' |
+                    Remove-Item -Recurse -Force
+            }
+            Assert-WritableDirectory -Path $directoryPath
         }
         Remove-Item -LiteralPath (Join-Path $stage 'node_modules') -Recurse -Force
         Remove-Item -LiteralPath (Join-Path $stage 'public\hot') -Force -ErrorAction SilentlyContinue
