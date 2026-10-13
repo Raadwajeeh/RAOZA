@@ -72,7 +72,19 @@ try {
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     Invoke-ExternalCommand -Command 'git' -ArgumentList @('-C', $repository, 'archive', '--format=zip', "--output=$sourceZip", 'HEAD')
     Expand-Archive -LiteralPath $sourceZip -DestinationPath $stage
-    Assert-WritableDirectory -Path (Join-Path $stage 'bootstrap\cache')
+    $writableDirectories = @(
+        'bootstrap\cache',
+        'storage\app\private',
+        'storage\app\public',
+        'storage\framework\cache\data',
+        'storage\framework\sessions',
+        'storage\framework\testing',
+        'storage\framework\views',
+        'storage\logs'
+    )
+    foreach ($directory in $writableDirectories) {
+        Assert-WritableDirectory -Path (Join-Path $stage $directory)
+    }
 
     Push-Location $stage
     try {
@@ -111,7 +123,9 @@ try {
                 throw "Release input is missing: $required"
             }
         }
-        Assert-WritableDirectory -Path (Join-Path $stage 'bootstrap\cache')
+        foreach ($directory in $writableDirectories) {
+            Assert-WritableDirectory -Path (Join-Path $stage $directory)
+        }
         Remove-Item -LiteralPath (Join-Path $stage 'node_modules') -Recurse -Force
         Remove-Item -LiteralPath (Join-Path $stage 'public\hot') -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath (Join-Path $stage '.phpunit.result.cache') -Force -ErrorAction SilentlyContinue
