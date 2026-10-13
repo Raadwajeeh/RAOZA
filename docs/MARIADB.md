@@ -1,6 +1,6 @@
 # MariaDB compatibility
 
-RAOZA supports PostgreSQL and MariaDB as production database backends. PostgreSQL remains the normal local/QA backend; SQLite `:memory:` remains the default PHPUnit backend. Do not point any automated test command at a persistent development, QA, staging, or production database.
+RAOZA supports PostgreSQL for local development, but MariaDB is the authoritative live database for the Hostinger deployment. SQLite `:memory:` remains the default fast PHPUnit backend. Do not point any automated test command at a persistent development, QA, staging, or production database.
 
 ## Supported MariaDB profile
 
@@ -24,6 +24,6 @@ php vendor\bin\phpunit -c phpunit.mariadb.xml
 
 The suite runs destructive migrations and independent-process concurrency tests. It must never be used with Hostinger or any long-lived database.
 
-## Hostinger work that remains external
+## Hostinger verification that remains external
 
-Confirm the actual MariaDB version and enabled SQL mode, database host/port, TLS/CA availability, account privileges, storage-engine defaults, worker supervision, cron, backups/restores, and maintenance/deployment procedure in the selected Hostinger plan. Existing PostgreSQL backup tooling is intentionally retained; a reviewed MariaDB backup/restore procedure is still required before selecting MariaDB for production. No deployment or live database change is performed by this compatibility work.
+Confirm the actual MariaDB version and enabled SQL mode, database host/port, TLS/CA availability, account privileges and storage-engine defaults with `production:preflight`. Worker/cron, backup/restore and deployment procedures are in the Hostinger-specific runbooks. No repository test or script in this audit connects to Hostinger or changes a live database.

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
@@ -59,10 +60,11 @@ final class HealthEndpointTest extends TestCase
 
     public function test_forwarded_https_is_not_trusted_without_an_explicit_proxy_allowlist(): void
     {
-        $this->withServerVariables(['HTTP_X_FORWARDED_PROTO' => 'https'])
-            ->get('/health/live')
-            ->assertOk();
+        Route::get('/_test/request-security', fn () => ['secure' => request()->isSecure()]);
 
-        $this->assertFalse(request()->isSecure());
+        $this->withServerVariables(['HTTP_X_FORWARDED_PROTO' => 'https'])
+            ->get('http://localhost/_test/request-security')
+            ->assertOk()
+            ->assertJsonPath('secure', false);
     }
 }

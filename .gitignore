@@ -19,10 +19,22 @@ yarn-error.log
 /.vscode
 /.playwright-cli
 /output/playwright
+/artifacts
 /LOGO/
 /Projecten/
 /7 photos/
 /mix/
+
+# Local duplicate trees and generated release output.
+/Projecten - kopie/
+/public - kopie/
+/raoza-build/
+/raoza-build - kopie/
+/resources - kopie/
+/routes - kopie/
+/scripts - kopie/
+/storage - kopie/
+/*.zip
 
 /storage/framework/views/*
 !/storage/framework/views/.gitignore

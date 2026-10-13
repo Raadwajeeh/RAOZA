@@ -23,8 +23,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
-          extensions: pdo_pgsql
+          php-version: '8.4'
+          extensions: pdo_sqlite, pdo_mysql
           coverage: none
       - uses: actions/setup-node@v4
         with:
@@ -35,41 +35,47 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build
+      - run: php artisan production:verify-build
       - run: php artisan test
 
-  postgres-schema:
+  mariadb-commerce:
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:17
+      mariadb:
+        image: mariadb:11.8
         env:
-          POSTGRES_DB: raoza_schema_test
-          POSTGRES_USER: raoza
-          POSTGRES_PASSWORD: raoza_schema_test
-        ports: ['5432:5432']
+          MARIADB_DATABASE: raoza_phase7d2_ci
+          MARIADB_USER: raoza_phase7d2_runner
+          MARIADB_PASSWORD: raoza_phase7d2_password
+          MARIADB_ROOT_PASSWORD: root_ci_only
+        ports: ['3306:3306']
         options: >-
-          --health-cmd="pg_isready -U raoza -d raoza_schema_test"
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
     env:
-      APP_ENV: testing-integration
+      APP_ENV: testing
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       APP_DEBUG: false
-      DB_CONNECTION: pgsql
+      DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_DATABASE: raoza_schema_test
-      DB_USERNAME: raoza
-      DB_PASSWORD: raoza_schema_test
+      DB_PORT: 3306
+      DB_DATABASE: raoza_phase7d2_ci
+      DB_USERNAME: raoza_phase7d2_runner
+      DB_PASSWORD: raoza_phase7d2_password
+      DB_ISOLATION_LEVEL: READ COMMITTED
+      DB_URL: ''
+      DATABASE_URL: ''
+      RAOZA_MARIADB_TEST_OPT_IN: phase7d2-disposable
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
-          extensions: pdo_pgsql
+          php-version: '8.4'
+          extensions: pdo_mysql
           coverage: none
       - run: composer validate --strict
       - run: composer install --no-interaction --prefer-dist
-      - name: Validate PostgreSQL schema only
-        run: php artisan migrate:fresh --force
+      - name: Validate MariaDB schema and commerce concurrency
+        run: php vendor/bin/phpunit -c phpunit.mariadb.xml

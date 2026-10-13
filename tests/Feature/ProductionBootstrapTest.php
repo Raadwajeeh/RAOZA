@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Services\ProductionBootstrapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -14,7 +15,7 @@ class ProductionBootstrapTest extends TestCase
 
     public function test_incomplete_example_is_validation_only_and_writes_nothing(): void
     {
-        $this->artisan('production:bootstrap', ['manifest'=>'resources/production/bootstrap-manifest.example.json','--dry-run'=>true])
+        $this->artisan('production:bootstrap', ['manifest' => 'resources/production/bootstrap-manifest.example.json', '--dry-run' => true])
             ->assertFailed();
         $this->assertDatabaseCount('products', 0);
     }
@@ -50,25 +51,67 @@ class ProductionBootstrapTest extends TestCase
         $this->assertDatabaseCount('inventory_movements', 6);
     }
 
+    public function test_manifest_rejects_remote_traversal_and_missing_persistent_images(): void
+    {
+        Storage::fake('public');
+        $service = app(ProductionBootstrapService::class);
+
+        foreach (['https://example.test/product.webp', '/../.env', 'products/missing.webp'] as $unsafePath) {
+            $path = $this->manifest();
+            $data = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+            $data['products'][0]['images'][0]['path'] = $unsafePath;
+            file_put_contents($path, json_encode($data, JSON_THROW_ON_ERROR));
+            try {
+                $service->validateManifest($path);
+                $this->fail("Image path should have been rejected: {$unsafePath}");
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('Catalog image', $exception->getMessage());
+            } finally {
+                @unlink($path);
+            }
+        }
+    }
+
+    public function test_zero_opening_stock_does_not_create_a_zero_quantity_movement(): void
+    {
+        $path = $this->manifest();
+        $this->app['config']->set('commerce.demo_mode', false);
+        $data = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        $data['products'][0]['variants'][0]['opening_stock'] = 0;
+        file_put_contents($path, json_encode($data, JSON_THROW_ON_ERROR));
+
+        try {
+            $service = app(ProductionBootstrapService::class);
+            $validated = $service->validateManifest($path);
+            $service->apply($validated['data']);
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertDatabaseHas('inventories', ['quantity_on_hand' => 0, 'quantity_reserved' => 0]);
+        $this->assertDatabaseCount('inventory_movements', 5);
+    }
+
     private function manifest(): string
     {
-        $products = collect(ProductionBootstrapService::PRODUCT_SLUGS)->values()->map(fn ($slug,$index) => [
-            'slug'=>$slug,'name'=>ucwords(str_replace('-',' ',$slug)),
-            'category_slug'=>$index < 3 ? 't-shirts' : 'hoodies',
-            'collection_slug'=>$index % 2 ? 'drop-01' : 'core-essentials','position'=>$index+1,
-            'base_price'=>3000+$index,'short_description'=>'Reviewed short description','description'=>'Reviewed description',
-            'fit_notes'=>'Reviewed fit','product_details'=>'Reviewed details','care_instructions'=>'Reviewed care',
-            'seo_title'=>'Reviewed title','seo_description'=>'Reviewed SEO description',
-            'images'=>[['path'=>'/brand/raoza-monogram-gold.png','alt_text'=>'Reviewed product image']],
-            'variants'=>[['sku'=>'PROD-'.($index+1),'price_override'=>null,'opening_stock'=>5,'options'=>['Size'=>'M','Color'=>'Reviewed']]],
+        $products = collect(ProductionBootstrapService::PRODUCT_SLUGS)->values()->map(fn ($slug, $index) => [
+            'slug' => $slug, 'name' => ucwords(str_replace('-', ' ', $slug)),
+            'category_slug' => $index < 3 ? 't-shirts' : 'hoodies',
+            'collection_slug' => $index % 2 ? 'drop-01' : 'core-essentials', 'position' => $index + 1,
+            'base_price' => 3000 + $index, 'short_description' => 'Reviewed short description', 'description' => 'Reviewed description',
+            'fit_notes' => 'Reviewed fit', 'product_details' => 'Reviewed details', 'care_instructions' => 'Reviewed care',
+            'seo_title' => 'Reviewed title', 'seo_description' => 'Reviewed SEO description',
+            'images' => [['path' => '/brand/raoza-monogram-gold.png', 'alt_text' => 'Reviewed product image']],
+            'variants' => [['sku' => 'PROD-'.($index + 1), 'price_override' => null, 'opening_stock' => 5, 'options' => ['Size' => 'M', 'Color' => 'Reviewed']]],
         ])->all();
-        $data = ['version'=>1,
-            'categories'=>[['slug'=>'t-shirts','name'=>'T-Shirts','description'=>'Reviewed'],['slug'=>'hoodies','name'=>'Hoodies','description'=>'Reviewed']],
-            'collections'=>[['slug'=>'drop-01','name'=>'Drop 01','description'=>'Reviewed'],['slug'=>'core-essentials','name'=>'Core Essentials','description'=>'Reviewed']],
-            'products'=>$products,
+        $data = ['version' => 1,
+            'categories' => [['slug' => 't-shirts', 'name' => 'T-Shirts', 'description' => 'Reviewed'], ['slug' => 'hoodies', 'name' => 'Hoodies', 'description' => 'Reviewed']],
+            'collections' => [['slug' => 'drop-01', 'name' => 'Drop 01', 'description' => 'Reviewed'], ['slug' => 'core-essentials', 'name' => 'Core Essentials', 'description' => 'Reviewed']],
+            'products' => $products,
         ];
         $path = tempnam(sys_get_temp_dir(), 'raoza-bootstrap-');
         file_put_contents($path, json_encode($data, JSON_THROW_ON_ERROR));
+
         return $path;
     }
 }

@@ -19,6 +19,7 @@ use App\Domain\Inventory\Enums\InventoryMovementType;
 use App\Domain\Inventory\Models\Inventory;
 use App\Domain\Inventory\Models\InventoryMovement;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use RuntimeException;
 
@@ -41,44 +42,44 @@ final class ProductionBootstrapService
         }
         $this->rejectSecrets($data);
         $validator = Validator::make($data, [
-            'version' => ['required','integer','in:1'],
-            'categories' => ['required','array','min:1'],
-            'categories.*.slug' => ['required','alpha_dash','distinct'],
-            'categories.*.name' => ['required','string','max:120'],
-            'categories.*.description' => ['required','string'],
-            'collections' => ['required','array','min:1'],
-            'collections.*.slug' => ['required','alpha_dash','distinct'],
-            'collections.*.name' => ['required','string','max:120'],
-            'collections.*.description' => ['required','string'],
-            'products' => ['required','array','size:6'],
-            'products.*.slug' => ['required','alpha_dash','distinct'],
-            'products.*.name' => ['required','string','max:160'],
-            'products.*.category_slug' => ['required','string'],
-            'products.*.collection_slug' => ['required','string'],
-            'products.*.position' => ['required','integer','between:1,6','distinct'],
-            'products.*.base_price' => ['required','integer','min:1'],
-            'products.*.short_description' => ['required','string','max:500'],
-            'products.*.description' => ['required','string'],
-            'products.*.fit_notes' => ['required','string'],
-            'products.*.product_details' => ['required','string'],
-            'products.*.care_instructions' => ['required','string'],
-            'products.*.seo_title' => ['required','string','max:255'],
-            'products.*.seo_description' => ['required','string','max:500'],
-            'products.*.images' => ['required','array','min:1'],
-            'products.*.images.*.path' => ['required','string','max:2048'],
-            'products.*.images.*.alt_text' => ['required','string','max:255'],
-            'products.*.variants' => ['required','array','min:1'],
-            'products.*.variants.*.sku' => ['required','string','max:120'],
-            'products.*.variants.*.price_override' => ['nullable','integer','min:0'],
-            'products.*.variants.*.opening_stock' => ['required','integer','min:0'],
-            'products.*.variants.*.options' => ['required','array','min:1'],
-            'store' => ['sometimes','array'],
-            'shipping_methods' => ['sometimes','array'],
-            'shipping_methods.*.code' => ['required','alpha_dash'],
-            'shipping_methods.*.name' => ['required','string','max:120'],
-            'shipping_methods.*.provider' => ['required','string','max:80'],
-            'shipping_methods.*.price' => ['required','integer','min:0'],
-            'shipping_methods.*.currency' => ['required','string','size:3'],
+            'version' => ['required', 'integer', 'in:1'],
+            'categories' => ['required', 'array', 'min:1'],
+            'categories.*.slug' => ['required', 'alpha_dash', 'distinct'],
+            'categories.*.name' => ['required', 'string', 'max:120'],
+            'categories.*.description' => ['required', 'string'],
+            'collections' => ['required', 'array', 'min:1'],
+            'collections.*.slug' => ['required', 'alpha_dash', 'distinct'],
+            'collections.*.name' => ['required', 'string', 'max:120'],
+            'collections.*.description' => ['required', 'string'],
+            'products' => ['required', 'array', 'size:6'],
+            'products.*.slug' => ['required', 'alpha_dash', 'distinct'],
+            'products.*.name' => ['required', 'string', 'max:160'],
+            'products.*.category_slug' => ['required', 'string'],
+            'products.*.collection_slug' => ['required', 'string'],
+            'products.*.position' => ['required', 'integer', 'between:1,6', 'distinct'],
+            'products.*.base_price' => ['required', 'integer', 'min:1'],
+            'products.*.short_description' => ['required', 'string', 'max:500'],
+            'products.*.description' => ['required', 'string'],
+            'products.*.fit_notes' => ['required', 'string'],
+            'products.*.product_details' => ['required', 'string'],
+            'products.*.care_instructions' => ['required', 'string'],
+            'products.*.seo_title' => ['required', 'string', 'max:255'],
+            'products.*.seo_description' => ['required', 'string', 'max:500'],
+            'products.*.images' => ['required', 'array', 'min:1'],
+            'products.*.images.*.path' => ['required', 'string', 'max:2048'],
+            'products.*.images.*.alt_text' => ['required', 'string', 'max:255'],
+            'products.*.variants' => ['required', 'array', 'min:1'],
+            'products.*.variants.*.sku' => ['required', 'string', 'max:120'],
+            'products.*.variants.*.price_override' => ['nullable', 'integer', 'min:0'],
+            'products.*.variants.*.opening_stock' => ['required', 'integer', 'min:0'],
+            'products.*.variants.*.options' => ['required', 'array', 'min:1'],
+            'store' => ['sometimes', 'array'],
+            'shipping_methods' => ['sometimes', 'array'],
+            'shipping_methods.*.code' => ['required', 'alpha_dash'],
+            'shipping_methods.*.name' => ['required', 'string', 'max:120'],
+            'shipping_methods.*.provider' => ['required', 'string', 'max:80'],
+            'shipping_methods.*.price' => ['required', 'integer', 'min:0'],
+            'shipping_methods.*.currency' => ['required', 'string', 'size:3'],
         ]);
         if ($validator->fails()) {
             throw new RuntimeException("Bootstrap manifest is incomplete:\n- ".implode("\n- ", $validator->errors()->all()));
@@ -94,7 +95,8 @@ final class ProductionBootstrapService
                 throw new RuntimeException("Product {$product['slug']} references an undefined category or collection.");
             }
             foreach ($product['images'] as $image) {
-                if (str_starts_with($image['path'], '/') && ! is_file(public_path(ltrim($image['path'], '/')))) {
+                $this->validateImagePath($image['path']);
+                if (! $this->imageExists($image['path'])) {
                     throw new RuntimeException("Catalog image does not exist: {$image['path']}");
                 }
             }
@@ -106,10 +108,10 @@ final class ProductionBootstrapService
             }
         }
 
-        return ['data'=>$data, 'summary'=>[
-            'categories'=>count($data['categories']), 'collections'=>count($data['collections']),
-            'products'=>count($data['products']), 'variants'=>array_sum(array_map(fn ($p) => count($p['variants']), $data['products'])),
-            'shipping_methods'=>count($data['shipping_methods'] ?? []),
+        return ['data' => $data, 'summary' => [
+            'categories' => count($data['categories']), 'collections' => count($data['collections']),
+            'products' => count($data['products']), 'variants' => array_sum(array_map(fn ($p) => count($p['variants']), $data['products'])),
+            'shipping_methods' => count($data['shipping_methods'] ?? []),
         ]];
     }
 
@@ -122,71 +124,86 @@ final class ProductionBootstrapService
 
         return DB::transaction(function () use ($data): array {
             $categories = collect($data['categories'])->mapWithKeys(function (array $row) {
-                $category = Category::query()->updateOrCreate(['slug'=>$row['slug']], [
-                    'name'=>$row['name'],'description'=>$row['description'],'status'=>CategoryStatus::Active,
-                    'position'=>$row['position'] ?? 0,'seo_title'=>$row['seo_title'] ?? null,
-                    'seo_description'=>$row['seo_description'] ?? null,'indexable'=>true,
+                $category = Category::query()->updateOrCreate(['slug' => $row['slug']], [
+                    'name' => $row['name'], 'description' => $row['description'], 'status' => CategoryStatus::Active,
+                    'position' => $row['position'] ?? 0, 'seo_title' => $row['seo_title'] ?? null,
+                    'seo_description' => $row['seo_description'] ?? null, 'indexable' => true,
                 ]);
-                return [$row['slug']=>$category];
+
+                return [$row['slug'] => $category];
             });
             $collections = collect($data['collections'])->mapWithKeys(function (array $row) {
-                $collection = Collection::query()->updateOrCreate(['slug'=>$row['slug']], [
-                    'name'=>$row['name'],'description'=>$row['description'],'status'=>CollectionStatus::Active,
-                    'published_at'=>now(),'seo_title'=>$row['seo_title'] ?? null,
-                    'seo_description'=>$row['seo_description'] ?? null,'indexable'=>true,
+                $collection = Collection::query()->updateOrCreate(['slug' => $row['slug']], [
+                    'name' => $row['name'], 'description' => $row['description'], 'status' => CollectionStatus::Active,
+                    'seo_title' => $row['seo_title'] ?? null,
+                    'seo_description' => $row['seo_description'] ?? null, 'indexable' => true,
                 ]);
-                return [$row['slug']=>$collection];
+                if ($collection->published_at === null) {
+                    $collection->forceFill(['published_at' => now()])->save();
+                }
+
+                return [$row['slug'] => $collection];
             });
 
             foreach ($data['products'] as $row) {
-                $product = Product::query()->updateOrCreate(['slug'=>$row['slug']], [
-                    'name'=>$row['name'],'position'=>$row['position'],'base_price'=>$row['base_price'],
-                    'short_description'=>$row['short_description'],'description'=>$row['description'],
-                    'fit_notes'=>$row['fit_notes'],'product_details'=>$row['product_details'],
-                    'care_instructions'=>$row['care_instructions'],'status'=>ProductStatus::Active,
-                    'seo_title'=>$row['seo_title'],'seo_description'=>$row['seo_description'],
-                    'og_image'=>$row['images'][0]['path'],'indexable'=>true,'published_at'=>now(),
+                $product = Product::query()->updateOrCreate(['slug' => $row['slug']], [
+                    'name' => $row['name'], 'position' => $row['position'], 'base_price' => $row['base_price'],
+                    'short_description' => $row['short_description'], 'description' => $row['description'],
+                    'fit_notes' => $row['fit_notes'], 'product_details' => $row['product_details'],
+                    'care_instructions' => $row['care_instructions'], 'status' => ProductStatus::Active,
+                    'seo_title' => $row['seo_title'], 'seo_description' => $row['seo_description'],
+                    'og_image' => $row['images'][0]['path'], 'indexable' => true,
                 ]);
-                $product->categories()->sync([$categories[$row['category_slug']]->id=>['position'=>$row['position']]]);
-                $product->collections()->sync([$collections[$row['collection_slug']]->id=>['position'=>$row['position']]]);
+                if ($product->published_at === null) {
+                    $product->forceFill(['published_at' => now()])->save();
+                }
+                $product->categories()->sync([$categories[$row['category_slug']]->id => ['position' => $row['position']]]);
+                $product->collections()->sync([$collections[$row['collection_slug']]->id => ['position' => $row['position']]]);
                 foreach ($row['images'] as $position => $image) {
-                    $product->images()->updateOrCreate(['path'=>$image['path']], [
-                        'variant_id'=>null,'alt_text'=>$image['alt_text'],'position'=>$position,
-                        'width'=>$image['width'] ?? null,'height'=>$image['height'] ?? null,
+                    $product->images()->updateOrCreate(['path' => $image['path']], [
+                        'variant_id' => null, 'alt_text' => $image['alt_text'], 'position' => $position,
+                        'width' => $image['width'] ?? null, 'height' => $image['height'] ?? null,
                     ]);
                 }
                 foreach ($row['variants'] as $variantData) {
                     $valueIds = [];
                     foreach ($variantData['options'] as $optionName => $valueName) {
-                        $option = ProductOption::query()->firstOrCreate(['product_id'=>$product->id,'name'=>$optionName]);
-                        $value = ProductOptionValue::query()->firstOrCreate(['product_option_id'=>$option->id,'value'=>$valueName]);
+                        $option = ProductOption::query()->firstOrCreate(['product_id' => $product->id, 'name' => $optionName]);
+                        $value = ProductOptionValue::query()->firstOrCreate(['product_option_id' => $option->id, 'value' => $valueName]);
                         $valueIds[] = $value->id;
                     }
-                    $conflict = ProductVariant::query()->where('sku',$variantData['sku'])->where('product_id','!=',$product->id)->exists();
-                    if ($conflict) throw new RuntimeException("SKU belongs to another product: {$variantData['sku']}");
-                    $variant = ProductVariant::query()->updateOrCreate(['product_id'=>$product->id,'option_signature'=>VariantSignature::fromOptionValueIds($valueIds)], [
-                        'sku'=>$variantData['sku'],'price_override'=>$variantData['price_override'] ?? null,'status'=>VariantStatus::Active,
+                    $conflict = ProductVariant::query()->where('sku', $variantData['sku'])->where('product_id', '!=', $product->id)->exists();
+                    if ($conflict) {
+                        throw new RuntimeException("SKU belongs to another product: {$variantData['sku']}");
+                    }
+                    $variant = ProductVariant::query()->updateOrCreate(['product_id' => $product->id, 'option_signature' => VariantSignature::fromOptionValueIds($valueIds)], [
+                        'sku' => $variantData['sku'], 'price_override' => $variantData['price_override'] ?? null, 'status' => VariantStatus::Active,
                     ]);
                     $variant->optionValues()->sync($valueIds);
-                    $inventory = Inventory::query()->firstOrCreate(['variant_id'=>$variant->id], ['quantity_on_hand'=>$variantData['opening_stock'],'quantity_reserved'=>0]);
+                    $inventory = Inventory::query()->firstOrCreate(['variant_id' => $variant->id], ['quantity_on_hand' => $variantData['opening_stock'], 'quantity_reserved' => 0]);
                     if (! $inventory->wasRecentlyCreated && $inventory->quantity_on_hand !== $variantData['opening_stock']) {
                         throw new RuntimeException("Existing stock for {$variant->sku} differs from the manifest; use an audited inventory adjustment.");
                     }
-                    InventoryMovement::query()->firstOrCreate(
-                        ['variant_id'=>$variant->id,'reference_type'=>'production_bootstrap','reference_id'=>'opening'],
-                        ['type'=>InventoryMovementType::StockReceived,'quantity'=>$variantData['opening_stock'],'note'=>'Reviewed production opening stock','created_at'=>now()],
-                    );
+                    if ($variantData['opening_stock'] > 0) {
+                        InventoryMovement::query()->firstOrCreate(
+                            ['variant_id' => $variant->id, 'reference_type' => 'production_bootstrap', 'reference_id' => 'opening'],
+                            ['type' => InventoryMovementType::StockReceived, 'quantity' => $variantData['opening_stock'], 'note' => 'Reviewed production opening stock', 'created_at' => now()],
+                        );
+                    }
                 }
             }
-            if (isset($data['store'])) SiteContent::query()->updateOrCreate(['key'=>'store_information'], ['value'=>$data['store']]);
+            if (isset($data['store'])) {
+                SiteContent::query()->updateOrCreate(['key' => 'store_information'], ['value' => $data['store']]);
+            }
             foreach ($data['shipping_methods'] ?? [] as $row) {
-                ShippingMethod::query()->updateOrCreate(['code'=>$row['code']], [
-                    'name'=>$row['name'],'provider'=>$row['provider'],'price'=>$row['price'],
-                    'currency'=>strtoupper($row['currency']),'active'=>$row['active'] ?? true,
-                    'position'=>$row['position'] ?? 0,'configuration'=>$row['configuration'] ?? null,
+                ShippingMethod::query()->updateOrCreate(['code' => $row['code']], [
+                    'name' => $row['name'], 'provider' => $row['provider'], 'price' => $row['price'],
+                    'currency' => strtoupper($row['currency']), 'active' => $row['active'] ?? true,
+                    'position' => $row['position'] ?? 0, 'configuration' => $row['configuration'] ?? null,
                 ]);
             }
-            return ['categories'=>$categories->count(),'collections'=>$collections->count(),'products'=>count($data['products'])];
+
+            return ['categories' => $categories->count(), 'collections' => $collections->count(), 'products' => count($data['products'])];
         }, 3);
     }
 
@@ -197,7 +214,34 @@ final class ProductionBootstrapService
             if (preg_match('/(?:password|secret|api.?key|token|credential)/i', (string) $key)) {
                 throw new RuntimeException("Secrets are not allowed in the bootstrap manifest ({$current}).");
             }
-            if (is_array($value)) $this->rejectSecrets($value, $current);
+            if (is_array($value)) {
+                $this->rejectSecrets($value, $current);
+            }
         }
+    }
+
+    private function validateImagePath(string $path): void
+    {
+        if ($path === '' || str_contains($path, "\0") || str_contains($path, '\\')
+            || str_contains($path, '?') || str_contains($path, '#')
+            || preg_match('#(^|/)\.\.(/|$)#', $path)
+            || preg_match('#^[a-z][a-z0-9+.-]*://#i', $path)) {
+            throw new RuntimeException("Catalog image path is unsafe: {$path}");
+        }
+
+        if (str_starts_with($path, '//') || ($path[0] === '/' && ! preg_match('#^/(?:brand|campaign|catalog)/[A-Za-z0-9][A-Za-z0-9._/-]*$#', $path))) {
+            throw new RuntimeException("Catalog image path must reference approved public catalog media: {$path}");
+        }
+
+        if ($path[0] !== '/' && ! preg_match('#^products/[A-Za-z0-9][A-Za-z0-9._/-]*$#', $path)) {
+            throw new RuntimeException("Catalog image path must reference persistent product media: {$path}");
+        }
+    }
+
+    private function imageExists(string $path): bool
+    {
+        return $path[0] === '/'
+            ? is_file(public_path(ltrim($path, '/')))
+            : Storage::disk('public')->exists($path);
     }
 }
