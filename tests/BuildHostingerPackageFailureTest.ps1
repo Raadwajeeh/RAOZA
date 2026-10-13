@@ -24,10 +24,19 @@ $previousPath = $env:PATH
 try {
     New-Item -ItemType Directory -Path (Join-Path $testRepository 'scripts') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $testRepository 'bootstrap\cache') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $testRepository 'deployment\hostinger\public_html') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $testRepository 'node_modules') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $testRepository 'public\build') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $testRepository 'vendor') -Force | Out-Null
     New-Item -ItemType Directory -Path $fakeBin -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $repository 'scripts\build-hostinger-package.ps1') -Destination (Join-Path $testRepository 'scripts\build-hostinger-package.ps1')
     [IO.File]::WriteAllText((Join-Path $testRepository '.gitignore'), "/artifacts/`n", [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText((Join-Path $testRepository 'bootstrap\cache\.gitignore'), "*`n!.gitignore`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $testRepository 'deployment\hostinger\public_html\.htaccess'), 'fixture', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $testRepository 'deployment\hostinger\public_html\index.php'), '<?php', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $testRepository 'node_modules\.fixture'), 'fixture', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $testRepository 'public\build\manifest.json'), '{}', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $testRepository 'vendor\autoload.php'), '<?php', [Text.UTF8Encoding]::new($false))
     [IO.File]::WriteAllText((Join-Path $fakeBin 'composer.cmd'), "@exit /b 23`r`n", [Text.ASCIIEncoding]::new())
 
     Invoke-TestCommand -Command 'git' -ArgumentList @('-C', $testRepository, 'init', '--quiet')
@@ -71,7 +80,40 @@ try {
         throw 'A checksum was published after Composer failed.'
     }
 
-    Write-Output 'Composer failure correctly stopped the build without publishing artifacts.'
+    [IO.File]::WriteAllText((Join-Path $fakeBin 'composer.cmd'), "@exit /b 0`r`n", [Text.ASCIIEncoding]::new())
+    [IO.File]::WriteAllText((Join-Path $fakeBin 'npm.cmd'), "@exit /b 0`r`n", [Text.ASCIIEncoding]::new())
+    [IO.File]::WriteAllText((Join-Path $fakeBin 'php.cmd'), "@exit /b 0`r`n", [Text.ASCIIEncoding]::new())
+    $successProcess = Start-Process -FilePath 'powershell.exe' `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'scripts\build-hostinger-package.ps1') `
+        -WorkingDirectory $testRepository `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -Wait `
+        -PassThru `
+        -NoNewWindow
+    if ($successProcess.ExitCode -ne 0) {
+        throw 'The isolated successful build fixture failed.'
+    }
+
+    $zipPath = Join-Path $artifactDirectory "raoza-$shortSha.zip"
+    if (-not (Test-Path -LiteralPath $zipPath) -or -not (Test-Path -LiteralPath "$zipPath.sha256")) {
+        throw 'The successful fixture did not publish a ZIP and checksum.'
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        $entryNames = @($zip.Entries | ForEach-Object FullName)
+        if ($entryNames | Where-Object { $_ -match '\\' }) {
+            throw 'The ZIP contains a non-portable backslash path.'
+        }
+        if ('storage/framework/cache/data/' -notin $entryNames -or 'bootstrap/cache/.gitignore' -notin $entryNames) {
+            throw 'The ZIP does not preserve the required writable directory skeleton.'
+        }
+    } finally {
+        $zip.Dispose()
+    }
+
+    Write-Output 'Composer failure stopped publication, and the successful fixture produced a portable ZIP.'
 } finally {
     $env:PATH = $previousPath
     if (Test-Path -LiteralPath $temporary) {

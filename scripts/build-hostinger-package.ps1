@@ -46,6 +46,45 @@ function Assert-WritableDirectory {
     }
 }
 
+function New-PortableZipArchive {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDirectory,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Destination
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $sourceRoot = [IO.Path]::GetFullPath($SourceDirectory).TrimEnd('\') + '\'
+    $fileStream = [IO.File]::Open($Destination, [IO.FileMode]::CreateNew)
+    try {
+        $zip = [IO.Compression.ZipArchive]::new($fileStream, [IO.Compression.ZipArchiveMode]::Create, $false)
+        try {
+            foreach ($file in Get-ChildItem -LiteralPath $SourceDirectory -Recurse -Force -File | Sort-Object FullName) {
+                $entryName = $file.FullName.Substring($sourceRoot.Length).Replace('\', '/')
+                [IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                    $zip,
+                    $file.FullName,
+                    $entryName,
+                    [IO.Compression.CompressionLevel]::Optimal
+                ) | Out-Null
+            }
+            foreach ($directory in Get-ChildItem -LiteralPath $SourceDirectory -Recurse -Force -Directory | Sort-Object FullName) {
+                if (-not (Get-ChildItem -LiteralPath $directory.FullName -Force | Select-Object -First 1)) {
+                    $entryName = $directory.FullName.Substring($sourceRoot.Length).Replace('\', '/').TrimEnd('/') + '/'
+                    $zip.CreateEntry($entryName) | Out-Null
+                }
+            }
+        } finally {
+            $zip.Dispose()
+        }
+    } finally {
+        $fileStream.Dispose()
+    }
+}
+
 $repository = (Invoke-ExternalCommand -Command 'git' -ArgumentList @('rev-parse', '--show-toplevel') -CaptureOutput).Trim()
 if (-not $repository) { throw 'Run this script inside the RAOZA Git repository.' }
 if (Invoke-ExternalCommand -Command 'git' -ArgumentList @('-C', $repository, 'status', '--porcelain') -CaptureOutput) {
@@ -134,8 +173,7 @@ try {
         Pop-Location
     }
 
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [IO.Compression.ZipFile]::CreateFromDirectory($stage, $candidateArchive, [IO.Compression.CompressionLevel]::Optimal, $false)
+    New-PortableZipArchive -SourceDirectory $stage -Destination $candidateArchive
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidateArchive).Hash.ToLowerInvariant()
     [IO.File]::WriteAllText($candidateChecksum, "$hash  $archiveName`n", [Text.UTF8Encoding]::new($false))
     Move-Item -LiteralPath $candidateArchive -Destination $archive
