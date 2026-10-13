@@ -83,7 +83,19 @@ try {
         Invoke-ExternalCommand -Command 'npm' -ArgumentList @('run', 'typecheck')
         Invoke-ExternalCommand -Command 'npm' -ArgumentList @('run', 'build')
         Invoke-ExternalCommand -Command 'php' -ArgumentList @('artisan', 'production:verify-build')
-        Invoke-ExternalCommand -Command 'php' -ArgumentList @('artisan', 'test')
+        $previousAppKey = [Environment]::GetEnvironmentVariable('APP_KEY', 'Process')
+        try {
+            # The archived source deliberately contains no .env. Use the same
+            # non-secret deterministic test key as CI only for the test process.
+            $env:APP_KEY = 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+            Invoke-ExternalCommand -Command 'php' -ArgumentList @('artisan', 'test')
+        } finally {
+            if ($null -eq $previousAppKey) {
+                Remove-Item Env:APP_KEY -ErrorAction SilentlyContinue
+            } else {
+                $env:APP_KEY = $previousAppKey
+            }
+        }
         Invoke-ExternalCommand -Command 'composer' -ArgumentList @('install', '--no-dev', '--no-interaction', '--prefer-dist', '--optimize-autoloader', '--classmap-authoritative')
         Invoke-ExternalCommand -Command 'composer' -ArgumentList @('check-platform-reqs', '--no-dev')
         if (Test-Path -LiteralPath (Join-Path $stage '.env')) {
