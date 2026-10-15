@@ -11,6 +11,7 @@ use App\Domain\Payments\Models\Payment;
 use App\Domain\Fulfillment\Models\Shipment;
 use App\Domain\Returns\Models\ReturnRequest;
 use App\Domain\Returns\Models\Refund;
+use App\Domain\Invoicing\Models\Invoice;
 class Order extends Model
 {
     protected $fillable=['order_number','user_id','source_cart_id','shipping_method_id','shipping_method_name','customer_email','customer_phone','analytics_consent','marketing_consent','currency','discount_code','subtotal_amount','discount_amount','shipping_amount','shipping_tax_amount','tax_amount','tax_rate_basis_points','total_amount','order_status','payment_status','fulfillment_status','placed_at','paid_at','cancelled_at'];
@@ -24,4 +25,6 @@ class Order extends Model
     public function shipments(): HasMany { return $this->hasMany(Shipment::class); }
     public function returns(): HasMany { return $this->hasMany(ReturnRequest::class); }
     public function refunds(): HasMany { return $this->hasMany(Refund::class); }
+    public function guestAccessTokens(): HasMany { return $this->hasMany(GuestOrderAccessToken::class); }
+    public function invoices(): HasMany { return $this->hasMany(Invoice::class); }
 }

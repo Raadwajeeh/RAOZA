@@ -6,6 +6,8 @@ use App\Domain\Commerce\Services\CheckoutService;
 use App\Domain\Commerce\Services\OrderCancellationService;
 use App\Domain\Commerce\Services\PendingOrderExpirationService;
 use App\Domain\Inventory\Models\Inventory;
+use App\Domain\Invoicing\Enums\InvoiceType;
+use App\Domain\Invoicing\Services\InvoiceNumberService;
 use App\Domain\Marketing\Models\Discount;
 use App\Domain\Marketing\Services\DiscountService;
 use App\Domain\Payments\Contracts\PaymentProvider;
@@ -148,6 +150,16 @@ try {
             }, 3);
 
             return ['attempts' => $attempts];
+        })(),
+        'invoice_number_start' => (function () use ($payload): array {
+            config()->set('invoicing.numbering.scope', $payload['scope']);
+            config()->set('invoicing.numbering.invoice_prefix', $payload['prefix']);
+            config()->set('invoicing.numbering.padding', $payload['padding']);
+            mariaDbBarrier('ready');
+            return DB::transaction(fn () => app(InvoiceNumberService::class)->next(
+                InvoiceType::Invoice,
+                \Illuminate\Support\Carbon::parse($payload['issued_at']),
+            ), 5);
         })(),
         default => throw new RuntimeException("Unknown worker action: {$action}"),
     };

@@ -8,11 +8,12 @@ const NavLink = ({ href, children, onClick, className = '', active = false }: { 
 export default function StorefrontLayout({ children }: PropsWithChildren) {
     const [open, setOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const page = usePage<{ cart?: { count: number }; store?: { brand_name: string; support_email: string; customer_service: string; instagram_url?: string | null }; navigation?: { categories: NavItem[]; collections: NavItem[] } }>();
+    const page = usePage<{ auth?: { user: { is_staff: boolean } | null }; cart?: { count: number }; store?: { brand_name: string; support_email: string; customer_service: string; instagram_url?: string | null }; navigation?: { categories: NavItem[]; collections: NavItem[] } }>();
     const cartCount = page.props.cart?.count ?? 0;
     const store = page.props.store ?? { brand_name: 'RAOZA', support_email: 'hello@raoza.nl', customer_service: '' };
     const categories = page.props.navigation?.categories ?? [];
     const collections = page.props.navigation?.collections ?? [];
+    const accountHref = page.props.auth?.user ? (page.props.auth.user.is_staff ? '/admin' : '/account') : '/account/login';
     const path = page.url.split('?')[0];
     const isHome = path === '/';
     const active = (href: string) => href === '/shop' ? path === '/shop' || path.startsWith('/products/') : path === href;
@@ -44,12 +45,13 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
                         {collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`} active={path === `/collections/${collection.slug}`}>{collection.name}</NavLink>)}
                         <NavLink href="/pages/about" active={path === '/pages/about'}>About</NavLink>
                     </>}
+                    <NavLink href={accountHref} active={path === '/account' || path.startsWith('/account/')}>Account</NavLink>
                 </nav>
                 <NavLink href="/cart" className="raoza-cart-link" active={path === '/cart'}>Bag <span aria-hidden="true">({String(cartCount).padStart(2, '0')})</span><span className="sr-only"> with {cartCount} items</span></NavLink>
             </div>
             <nav aria-label="Mobile" id="mobile-nav" aria-hidden={!open} className={`raoza-mobile-nav ${open ? 'is-open' : ''}`}>
                 <div className="raoza-mobile-primary"><span>Menu / RAOZA</span><NavLink href="/shop">Shop all</NavLink>{categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`}>{category.name}</NavLink>)}</div>
-                <div className="raoza-mobile-secondary"><div><p>Collections</p>{collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`}>{collection.name}</NavLink>)}</div><div><p>RAOZA</p><NavLink href="/pages/about">About</NavLink><NavLink href="/pages/contact">Contact</NavLink><NavLink href="/pages/faq">Help & FAQ</NavLink></div></div>
+                <div className="raoza-mobile-secondary"><div><p>Collections</p>{collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`}>{collection.name}</NavLink>)}</div><div><p>RAOZA</p><NavLink href={accountHref}>Account</NavLink><NavLink href="/pages/about">About</NavLink><NavLink href="/pages/contact">Contact</NavLink><NavLink href="/pages/faq">Help & FAQ</NavLink></div></div>
                 <div className="raoza-mobile-foot"><NavLink href="/cart">Bag ({String(cartCount).padStart(2, '0')})</NavLink><span>Urban Editorial / NL</span></div>
             </nav>
         </header>
@@ -59,7 +61,7 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
             <div className="raoza-footer-grid raoza-container">
                 <div><p className="raoza-footer-label">Shop</p><NavLink href="/shop">All apparel</NavLink>{categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`}>{category.name}</NavLink>)}{collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`}>{collection.name}</NavLink>)}</div>
                 <div><p className="raoza-footer-label">Customer care</p><NavLink href="/pages/contact">Contact</NavLink><NavLink href="/pages/faq">Help & FAQ</NavLink><NavLink href="/pages/size-guide">Size guide</NavLink><NavLink href="/pages/shipping">Shipping & delivery</NavLink><NavLink href="/pages/returns">Returns & refunds</NavLink></div>
-                <div><p className="raoza-footer-label">RAOZA</p><NavLink href="/pages/about">About RAOZA</NavLink><a href={`mailto:${store.support_email}`}>{store.support_email}</a>{store.instagram_url && <a href={store.instagram_url} rel="noreferrer" target="_blank">Instagram</a>}</div>
+                <div><p className="raoza-footer-label">RAOZA</p><NavLink href={accountHref}>Customer account</NavLink><NavLink href="/order-access">Guest order access</NavLink><NavLink href="/pages/about">About RAOZA</NavLink><a href={`mailto:${store.support_email}`}>{store.support_email}</a>{store.instagram_url && <a href={store.instagram_url} rel="noreferrer" target="_blank">Instagram</a>}</div>
                 <div><p className="raoza-footer-label">Legal</p><NavLink href="/pages/privacy">Privacy</NavLink><NavLink href="/pages/cookies">Cookies</NavLink><NavLink href="/pages/terms">Terms & conditions</NavLink><button type="button" onClick={() => window.dispatchEvent(new Event('raoza:cookie-preferences'))}>Cookie preferences</button></div>
             </div>
             <div className="raoza-footer-bottom raoza-container"><span>© {new Date().getFullYear()} {store.brand_name}</span><span>Deep Burgundy / Warm Cream</span><span>Netherlands</span></div>

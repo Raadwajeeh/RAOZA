@@ -17,8 +17,8 @@ class ResolveCart
         $token = $request->cookie(self::COOKIE);
         $cart = $token ? Cart::query()->where('token',$token)->where('status',CartStatus::Active)->where(fn($q)=>$q->whereNull('expires_at')->orWhere('expires_at','>',now()))->first() : null;
         if (!$cart) {
-            $cart = Cart::create(['token'=>(string)Str::uuid(),'user_id'=>$request->user()?->id,'status'=>CartStatus::Active,'currency'=>'EUR','expires_at'=>now()->addDays(30)]);
-        } elseif ($request->user() && !$cart->user_id) {
+            $cart = Cart::create(['token'=>(string)Str::uuid(),'user_id'=>$request->user() && ! $request->user()->isStaff() ? $request->user()->id : null,'status'=>CartStatus::Active,'currency'=>'EUR','expires_at'=>now()->addDays(30)]);
+        } elseif ($request->user() && ! $request->user()->isStaff() && !$cart->user_id) {
             $cart->update(['user_id'=>$request->user()->id]);
         }
         $request->attributes->set('cart',$cart);

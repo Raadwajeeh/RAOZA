@@ -250,6 +250,23 @@ final class CommerceMariaDbConcurrencyTest extends TestCase
         $this->assertSame(0, $inventory->fresh()->quantity_reserved);
     }
 
+    public function test_invoice_numbers_are_unique_and_sequential_under_concurrency(): void
+    {
+        $payload = ['scope' => 'yearly', 'prefix' => 'INV', 'padding' => 6, 'issued_at' => '2026-10-14T12:00:00Z'];
+        $a = $this->startWorker('invoice_number_start', $payload);
+        $b = $this->startWorker('invoice_number_start', $payload);
+        $this->waitFor($a, 'ready');
+        $this->waitFor($b, 'ready');
+        $this->release($a);
+        $this->release($b);
+        $results = [$this->finish($a), $this->finish($b)];
+
+        $this->assertTrue(collect($results)->every(fn ($result) => $result['ok']));
+        $numbers = collect($results)->pluck('result.number')->sort()->values()->all();
+        $this->assertSame(['INV-2026-000001', 'INV-2026-000002'], $numbers);
+        $this->assertSame(3, (int) DB::table('invoice_number_sequences')->where('document_type', 'invoice')->where('scope_key', '2026')->value('next_value'));
+    }
+
     private function checkoutOrderFromCart(Cart $cart, int $shippingId): void
     {
         app(CheckoutService::class)->createOrder($cart, $this->checkoutData($shippingId, ['email' => 'second@example.test']));

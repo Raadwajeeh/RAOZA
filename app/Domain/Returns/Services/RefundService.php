@@ -6,6 +6,7 @@ use App\Domain\Commerce\Enums\PaymentStatus;
 use App\Domain\Commerce\Enums\OrderStatus;
 use App\Domain\Commerce\Enums\FulfillmentStatus;
 use App\Domain\Commerce\Models\Order;
+use App\Domain\Invoicing\Services\AccountingDocumentService;
 use App\Domain\Payments\Contracts\PaymentProvider;
 use App\Domain\Payments\Data\ProviderRefund;
 use App\Domain\Payments\Data\ProviderRefundRequest;
@@ -26,7 +27,7 @@ use Throwable;
 
 class RefundService
 {
-    public function __construct(private PaymentProvider $provider) {}
+    public function __construct(private PaymentProvider $provider, private AccountingDocumentService $accountingDocuments) {}
 
     public function request(Order $order, int $amount, ?ReturnRequest $return = null, ?string $reason = null, ?string $idempotencyKey = null): Refund
     {
@@ -114,13 +115,13 @@ class RefundService
         }, 3);
 
         if (in_array($claimed->status, [RefundStatus::Succeeded, RefundStatus::Failed, RefundStatus::Cancelled], true)) {
-            return $claimed;
+            return $this->withCreditNote($claimed);
         }
         if ($claimed->provider_refund_id) {
             return $this->sync($claimed);
         }
         if (! $ownsSubmission) {
-            return $claimed;
+            return $this->withCreditNote($claimed);
         }
 
         $providerRefundId = null;
@@ -138,8 +139,7 @@ class RefundService
                 ));
             }
             $providerRefundId = $remote->id;
-
-            return $this->applyProviderState($claimed, $remote);
+            $applied = $this->applyProviderState($claimed, $remote);
         } catch (ProviderOperationException $exception) {
             $this->recordSubmissionFailure($claimed, $exception, $providerRefundId);
             throw $exception;
@@ -148,6 +148,8 @@ class RefundService
             $this->recordSubmissionFailure($claimed, $safe, $providerRefundId);
             throw $safe;
         }
+
+        return $this->withCreditNote($applied);
     }
 
     public function sync(Refund $refund): Refund
@@ -160,8 +162,7 @@ class RefundService
 
         try {
             $remote = $this->provider->fetchRefund($current->payment->provider_payment_id, $current->provider_refund_id);
-
-            return $this->applyProviderState($current, $remote);
+            $applied = $this->applyProviderState($current, $remote);
         } catch (Throwable $exception) {
             Log::warning('Refund provider synchronization failed', [
                 'operation' => 'refund_sync',
@@ -174,6 +175,8 @@ class RefundService
             ]);
             throw $exception;
         }
+
+        return $this->withCreditNote($applied);
     }
 
     public function refundableAmount(Order $order): int
@@ -271,6 +274,15 @@ class RefundService
             $order->statusHistory()->create(['domain'=>'order','from_status'=>$fromOrder,'to_status'=>OrderStatus::Cancelled->value,'reason'=>'full_refund_verified','created_at'=>now()]);
             $order->statusHistory()->create(['domain'=>'fulfillment','from_status'=>$fromFulfillment,'to_status'=>FulfillmentStatus::Cancelled->value,'reason'=>'full_refund_verified','created_at'=>now()]);
         }
+    }
+
+    private function withCreditNote(Refund $refund): Refund
+    {
+        if ($refund->status === RefundStatus::Succeeded) {
+            $this->accountingDocuments->issueCreditNoteForSucceededRefund($refund);
+        }
+
+        return $refund;
     }
 
     private function authoritativePayment(Order $order, bool $lock): Payment

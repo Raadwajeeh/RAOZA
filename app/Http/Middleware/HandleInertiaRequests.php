@@ -14,7 +14,11 @@ class HandleInertiaRequests extends Middleware
         /** @var Cart|null $cart */
         $cart=$request->attributes->get('cart');
         return [...parent::share($request),
-            'auth'=>['user'=>$request->user()?->only('id','name','email','role')],
+            'auth'=>['user'=>$request->user() ? [
+                ...$request->user()->only('id', 'name', 'email', 'phone', 'role'),
+                'email_verified' => $request->user()->hasVerifiedEmail(),
+                'is_staff' => $request->user()->isStaff(),
+            ] : null],
             'cart'=>['count'=>$cart?->items()->sum('quantity') ?? 0],
             'navigation'=>fn()=>[
                 'categories'=>Category::query()->where('status',CategoryStatus::Active)->orderBy('position')->limit(4)->get(['name','slug'])->toArray(),

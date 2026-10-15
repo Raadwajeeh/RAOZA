@@ -14,9 +14,21 @@ use App\Http\Controllers\AdminCustomersController;
 use App\Http\Controllers\AdminDiscountsController;
 use App\Http\Controllers\AdminContentController;
 use App\Http\Controllers\AdminStoreController;
+use App\Http\Controllers\AdminShippingCarrierController;
+use App\Http\Controllers\AdminShipmentDocumentController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\ConsentController;
 use App\Http\Controllers\DemoPaymentController;
+use App\Http\Controllers\CustomerAuthController;
+use App\Http\Controllers\CustomerEmailVerificationController;
+use App\Http\Controllers\CustomerAccountController;
+use App\Http\Controllers\CustomerAddressController;
+use App\Http\Controllers\CustomerReturnController;
+use App\Http\Controllers\CustomerSettingsController;
+use App\Http\Controllers\GuestOrderAccessController;
+use App\Http\Controllers\AdminDocumentController;
+use App\Http\Controllers\CustomerDocumentController;
+use App\Http\Controllers\GuestDocumentController;
 use App\Domain\Content\Enums\ContentStatus;
 use App\Domain\Content\Models\ContentPage;
 use App\Domain\Catalog\Enums\ProductStatus;
@@ -48,7 +60,7 @@ Route::get('/sitemap.xml', function () {
 })->name('sitemap');
 Route::get('/robots.txt', function () {
     $lines = app()->environment('production')
-        ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /cart', 'Disallow: /checkout', 'Disallow: /order-confirmation', 'Disallow: /payments', 'Disallow: /demo', 'Sitemap: '.route('sitemap')]
+        ? ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /account', 'Disallow: /order-access', 'Disallow: /guest/orders', 'Disallow: /cart', 'Disallow: /checkout', 'Disallow: /order-confirmation', 'Disallow: /payments', 'Disallow: /demo', 'Sitemap: '.route('sitemap')]
         : ['User-agent: *', 'Disallow: /'];
 
     return Response::make(implode("\n", $lines)."\n", 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
@@ -66,6 +78,43 @@ Route::get('/payments/return/{order:order_number}', [PaymentController::class, '
 Route::post('/payments/webhook', [PaymentController::class, 'webhook'])->middleware('throttle:120,1')->name('payments.webhook');
 Route::get('/demo/payments/{providerPaymentId}', [DemoPaymentController::class, 'show'])->name('demo.payment.show');
 Route::post('/demo/payments/{providerPaymentId}', [DemoPaymentController::class, 'complete'])->middleware('throttle:30,1')->name('demo.payment.complete');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/account/login', [CustomerAuthController::class, 'login'])->name('account.login');
+    Route::post('/account/login', [CustomerAuthController::class, 'authenticate'])->middleware('throttle:6,1')->name('account.authenticate');
+    Route::get('/account/register', [CustomerAuthController::class, 'register'])->name('account.register');
+    Route::post('/account/register', [CustomerAuthController::class, 'store'])->middleware('throttle:6,1')->name('account.store');
+    Route::get('/account/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->name('password.request');
+    Route::post('/account/forgot-password', [CustomerAuthController::class, 'sendResetLink'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/account/reset-password/{token}', [CustomerAuthController::class, 'resetPassword'])->name('password.reset');
+    Route::post('/account/reset-password', [CustomerAuthController::class, 'updatePassword'])->middleware('throttle:6,1')->name('password.update');
+});
+Route::middleware(['auth', 'customer'])->group(function () {
+    Route::get('/account/verify-email', [CustomerEmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('/account/verify-email/{id}/{hash}', [CustomerEmailVerificationController::class, 'verify'])->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+    Route::post('/account/email/verification-notification', [CustomerEmailVerificationController::class, 'resend'])->middleware('throttle:6,1')->name('verification.send');
+});
+Route::middleware(['auth', 'customer', 'verified'])->group(function () {
+    Route::get('/account', [CustomerAccountController::class, 'index'])->name('account.index');
+    Route::get('/account/orders/{orderNumber}', [CustomerAccountController::class, 'show'])->name('account.orders.show');
+    Route::get('/account/orders/{orderNumber}/documents/{documentNumber}', [CustomerDocumentController::class, 'download'])
+        ->middleware('throttle:20,1')->name('account.orders.documents.download');
+    Route::get('/account/addresses', [CustomerAddressController::class, 'index'])->name('account.addresses.index');
+    Route::post('/account/addresses', [CustomerAddressController::class, 'store'])->middleware('throttle:20,1')->name('account.addresses.store');
+    Route::patch('/account/addresses/{address}', [CustomerAddressController::class, 'update'])->middleware('throttle:20,1')->name('account.addresses.update');
+    Route::delete('/account/addresses/{address}', [CustomerAddressController::class, 'destroy'])->middleware('throttle:20,1')->name('account.addresses.destroy');
+    Route::patch('/account/addresses/{address}/default', [CustomerAddressController::class, 'setDefault'])->middleware('throttle:20,1')->name('account.addresses.default');
+    Route::get('/account/returns', [CustomerReturnController::class, 'index'])->name('account.returns.index');
+    Route::post('/account/orders/{orderNumber}/returns', [CustomerReturnController::class, 'store'])->middleware('throttle:5,1')->name('account.returns.store');
+    Route::get('/account/settings', [CustomerSettingsController::class, 'edit'])->name('account.settings.edit');
+    Route::patch('/account/settings/profile', [CustomerSettingsController::class, 'updateProfile'])->middleware('throttle:10,1')->name('account.settings.profile');
+    Route::patch('/account/settings/password', [CustomerSettingsController::class, 'updatePassword'])->middleware('throttle:5,1')->name('account.settings.password');
+});
+Route::get('/order-access', [GuestOrderAccessController::class, 'request'])->name('guest-orders.request');
+Route::post('/order-access', [GuestOrderAccessController::class, 'send'])->middleware('throttle:5,1')->name('guest-orders.send');
+Route::get('/guest/orders/{token}', [GuestOrderAccessController::class, 'show'])->middleware('throttle:20,1')->name('guest-orders.show');
+Route::get('/guest/orders/{token}/documents/{documentNumber}', [GuestDocumentController::class, 'download'])
+    ->middleware('throttle:20,1')->name('guest-orders.documents.download');
 
 Route::middleware('guest')->group(function () {
     Route::get('/admin/login', [AuthController::class, 'create'])->name('login');
@@ -99,6 +148,8 @@ Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(func
     Route::patch('/inventory/{variant}', [AdminInventoryController::class, 'adjust'])->middleware(['permission:inventory.adjust','throttle:30,1'])->name('inventory.adjust');
     Route::get('/orders', [AdminOrdersController::class, 'index'])->middleware('permission:orders.view')->name('orders.index');
     Route::get('/orders/{order:order_number}', [AdminOrdersController::class, 'show'])->middleware('permission:orders.view')->name('orders.show');
+    Route::get('/orders/{order:order_number}/documents/accounting/{documentNumber}', [AdminDocumentController::class, 'accounting'])->middleware('permission:orders.view')->name('orders.documents.accounting');
+    Route::get('/orders/{order:order_number}/documents/operational/{type}', [AdminDocumentController::class, 'operational'])->middleware(['permission:orders.view','throttle:30,1'])->name('orders.documents.operational');
     Route::post('/orders/{order:order_number}/cancel', [AdminOrdersController::class, 'cancel'])->middleware(['permission:orders.manage','throttle:20,1'])->name('orders.cancel');
     Route::get('/customers', [AdminCustomersController::class, 'index'])->middleware('permission:customers.view')->name('customers.index');
     Route::get('/customers/{email}', [AdminCustomersController::class, 'show'])->middleware('permission:customers.view')->where('email','.*')->name('customers.show');
@@ -116,6 +167,13 @@ Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(func
     Route::get('/fulfillment', [AdminFulfillmentController::class, 'index'])->middleware('permission:fulfillment.manage')->name('fulfillment.index');
     Route::patch('/orders/{order:order_number}/fulfillment', [AdminFulfillmentController::class, 'transition'])->middleware('permission:fulfillment.manage')->name('fulfillment.transition');
     Route::post('/orders/{order:order_number}/shipments', [AdminFulfillmentController::class, 'ship'])->middleware(['permission:fulfillment.manage','throttle:30,1'])->name('shipments.store');
+    Route::patch('/shipments/{shipment}', [AdminFulfillmentController::class, 'update'])->middleware(['permission:fulfillment.manage','throttle:30,1'])->name('shipments.update');
+    Route::post('/shipments/{shipment}/hand-over', [AdminFulfillmentController::class, 'handOver'])->middleware(['permission:fulfillment.manage','throttle:20,1'])->name('shipments.hand-over');
+    Route::patch('/shipments/{shipment}/status', [AdminFulfillmentController::class, 'status'])->middleware(['permission:fulfillment.manage','throttle:30,1'])->name('shipments.status');
+    Route::post('/shipments/{shipment}/cancel', [AdminFulfillmentController::class, 'cancel'])->middleware(['permission:fulfillment.manage','throttle:20,1'])->name('shipments.cancel');
+    Route::get('/shipments/{shipment}/documents/manual-address-label', [AdminShipmentDocumentController::class, 'label'])->middleware(['permission:fulfillment.manage','throttle:30,1'])->name('shipments.documents.label');
+    Route::post('/shipping-carriers', [AdminShippingCarrierController::class, 'store'])->middleware(['permission:fulfillment.manage','throttle:20,1'])->name('shipping-carriers.store');
+    Route::patch('/shipping-carriers/{shippingCarrier}', [AdminShippingCarrierController::class, 'update'])->middleware(['permission:fulfillment.manage','throttle:20,1'])->name('shipping-carriers.update');
     Route::get('/returns', [AdminReturnsController::class, 'index'])->middleware('permission:returns.view')->name('returns.index');
     Route::post('/orders/{order:order_number}/returns', [AdminReturnsController::class, 'store'])->middleware(['permission:returns.manage','throttle:20,1'])->name('returns.store');
     Route::patch('/returns/{return:return_number}', [AdminReturnsController::class, 'transition'])->middleware('permission:returns.manage')->name('returns.transition');

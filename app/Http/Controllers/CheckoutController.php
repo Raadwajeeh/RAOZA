@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Domain\Commerce\Models\Order;
 use App\Domain\Commerce\Services\CartService;
 use App\Domain\Commerce\Services\CheckoutService;
+use App\Domain\Commerce\Services\OrderPresenter;
+use App\Domain\Customer\Models\CustomerAddress;
 use App\Domain\Fulfillment\Services\ShippingQuoteService;
 use App\Domain\Marketing\Services\AnalyticsService;
 use App\Http\Middleware\ResolveCart;
@@ -31,16 +33,26 @@ class CheckoutController extends Controller
             'item_count' => $summary['count'],
         ]);
 
+        $user = $request->user();
+        $addresses = $user && ! $user->isStaff()
+            ? $user->addresses()->orderByDesc('is_default_shipping')->orderByDesc('is_default_billing')->get()->map(fn (CustomerAddress $address) => $address->only([
+                'id', 'label', 'first_name', 'last_name', 'company', 'phone', 'street', 'house_number', 'addition',
+                'postal_code', 'city', 'country_code', 'is_shipping', 'is_billing', 'is_default_shipping', 'is_default_billing',
+            ]))->values()
+            : collect();
+
         return Inertia::render('Storefront/Checkout', ['checkout' => [
             'cart' => $summary,
             'countries' => [['code' => 'NL', 'name' => 'Netherlands']],
             'shippingMethods' => $shipping->active(),
             'vatRateBasisPoints' => (int) config('commerce.vat_rate_basis_points', 2100),
+            'savedAddresses' => $addresses,
         ]]);
     }
 
     public function store(Request $request, CheckoutService $service): RedirectResponse
     {
+        $this->hydrateSavedAddresses($request);
         $data = $request->validate($this->rules());
         $data['_analytics_consent'] = (bool) $request->session()->get('consent.analytics', false);
         $data['_marketing_consent'] = (bool) $request->session()->get('consent.marketing', false);
@@ -54,12 +66,12 @@ class CheckoutController extends Controller
         return redirect()->route('checkout.confirmation', ['order' => $order->order_number]);
     }
 
-    public function confirmation(Request $request, Order $order): Response
+    public function confirmation(Request $request, Order $order, OrderPresenter $presenter): Response
     {
-        abort_unless($request->session()->get('last_order_number') === $order->order_number, 404);
+        abort_unless($this->mayAccess($request, $order), 404);
 
         return Inertia::render('Storefront/OrderConfirmation', [
-            'order' => $this->present($order->load(['items', 'payments', 'addresses'])),
+            'order' => $presenter->detail($order),
         ]);
     }
 
@@ -67,6 +79,7 @@ class CheckoutController extends Controller
     {
         return [
             'email' => ['required', 'email:rfc', 'max:254'], 'phone' => ['nullable', 'string', 'max:40'],
+            'shipping_address_id' => ['nullable', 'integer'], 'billing_address_id' => ['nullable', 'integer'],
             'shipping_method_id' => ['required', 'integer', 'exists:shipping_methods,id'], 'discount_code' => ['nullable', 'string', 'max:50'],
             'billing_same_as_shipping' => ['required', 'boolean'],
             'shipping_first_name' => ['required', 'string', 'max:100'], 'shipping_last_name' => ['required', 'string', 'max:100'],
@@ -86,20 +99,53 @@ class CheckoutController extends Controller
         ];
     }
 
-    private function present(Order $order): array
+    private function hydrateSavedAddresses(Request $request): void
     {
-        $address = $order->addresses->firstWhere('type', 'shipping');
+        $this->hydrateSavedAddress($request, 'shipping');
+        if (! $request->boolean('billing_same_as_shipping')) {
+            $this->hydrateSavedAddress($request, 'billing');
+        }
+    }
 
-        return [
-            'number' => $order->order_number, 'email' => $order->customer_email, 'currency' => $order->currency,
-            'subtotal' => $order->subtotal_amount, 'discount' => $order->discount_amount, 'discountCode' => $order->discount_code,
-            'shipping' => $order->shipping_amount, 'shippingMethod' => $order->shipping_method_name, 'tax' => $order->tax_amount,
-            'taxRateBasisPoints' => $order->tax_rate_basis_points, 'total' => $order->total_amount,
-            'paymentStatus' => $order->payment_status->value, 'orderStatus' => $order->order_status->value,
-            'fulfillmentStatus' => $order->fulfillment_status->value, 'canPay' => $order->payment_status->canAcceptPayment(),
-            'latestPaymentStatus' => $order->payments->sortByDesc('id')->first()?->status?->value,
-            'shippingAddress' => $address ? $address->only('first_name', 'last_name', 'company', 'street', 'house_number', 'addition', 'postal_code', 'city', 'country_code') : null,
-            'items' => $order->items->map(fn ($item) => ['name' => $item->product_name, 'options' => $item->variant_options, 'quantity' => $item->quantity, 'total' => $item->total_amount])->values(),
-        ];
+    private function hydrateSavedAddress(Request $request, string $type): void
+    {
+        $addressId = $request->input("{$type}_address_id");
+        if ($addressId === null || $addressId === '') {
+            return;
+        }
+
+        $user = $request->user();
+        abort_unless($user && ! $user->isStaff(), 404);
+        $address = CustomerAddress::query()
+            ->where('user_id', $user->id)
+            ->where("is_{$type}", true)
+            ->findOrFail((int) $addressId);
+        $request->merge([
+            "{$type}_first_name" => $address->first_name,
+            "{$type}_last_name" => $address->last_name,
+            "{$type}_company" => $address->company,
+            "{$type}_street" => $address->street,
+            "{$type}_house_number" => $address->house_number,
+            "{$type}_addition" => $address->addition,
+            "{$type}_postal_code" => $address->postal_code,
+            "{$type}_city" => $address->city,
+            "{$type}_country_code" => $address->country_code,
+        ]);
+    }
+
+    private function mayAccess(Request $request, Order $order): bool
+    {
+        if ($request->session()->get('last_order_number') === $order->order_number) {
+            return true;
+        }
+
+        $guestAccessExpiresAt = (int) $request->session()->get("guest_order_access.{$order->order_number}", 0);
+        if ($guestAccessExpiresAt > now()->getTimestamp() && $order->user_id === null) {
+            return true;
+        }
+
+        $user = $request->user();
+
+        return $user && ! $user->isStaff() && $order->user_id === $user->id;
     }
 }

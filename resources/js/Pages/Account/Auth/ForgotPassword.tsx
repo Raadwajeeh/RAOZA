@@ -1,0 +1,7 @@
+import { Form, Head, Link, usePage } from '@inertiajs/react';
+import StorefrontLayout from '../../../Layouts/StorefrontLayout';
+
+export default function ForgotPassword() {
+    const success=(usePage().props.flash as any)?.success;
+    return <StorefrontLayout><Head title="Reset password"/><main className="mx-auto max-w-2xl px-5 py-20 md:px-10 md:py-28"><p className="text-[10px] uppercase tracking-[.22em] text-raoza-secondary">Account recovery</p><h1 className="mt-4 font-display text-6xl text-raoza-primary">Reset your password.</h1><p className="mt-5 text-sm leading-6 text-raoza-black/60">Enter your customer email. For privacy, the response is the same whether or not an account exists.</p>{success&&<p role="status" className="mt-6 border border-raoza-primary/20 bg-white p-4 text-sm">{success}</p>}<Form action="/account/forgot-password" method="post" className="mt-8">{({errors,processing})=><><label className="block text-sm font-medium">Email<input name="email" type="email" autoComplete="email" required autoFocus className="mt-2 min-h-12 w-full border border-raoza-primary/25 bg-white px-4"/></label>{errors.email&&<p role="alert" className="mt-2 text-sm text-red-800">{errors.email}</p>}<button disabled={processing} className="raoza-button mt-5 w-full disabled:opacity-50">{processing?'Sending…':'Send reset link'}</button></>}</Form><Link href="/account/login" className="mt-6 inline-block text-sm underline underline-offset-4">Back to sign in</Link></main></StorefrontLayout>;
+}

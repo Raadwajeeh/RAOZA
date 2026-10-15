@@ -27,9 +27,16 @@ return Application::configure(basePath: dirname(__DIR__))
                     | Request::HEADER_X_FORWARDED_PROTO,
             );
         }
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('admin', 'admin/*')
+            ? route('login')
+            : route('account.login'));
         $middleware->validateCsrfTokens(except: ['payments/webhook']);
         $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class, \App\Http\Middleware\ResolveCart::class, \App\Http\Middleware\HandleInertiaRequests::class]);
-        $middleware->alias(['admin' => \App\Http\Middleware\EnsureAdmin::class, 'permission' => \App\Http\Middleware\RequirePermission::class]);
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'customer' => \App\Http\Middleware\EnsureCustomer::class,
+            'permission' => \App\Http\Middleware\RequirePermission::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {})
     ->create();

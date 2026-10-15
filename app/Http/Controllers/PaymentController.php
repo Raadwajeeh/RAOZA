@@ -16,7 +16,7 @@ class PaymentController extends Controller
 {
     public function start(Request $request, Order $order, PaymentService $service): RedirectResponse
     {
-        abort_unless($request->session()->get('last_order_number') === $order->order_number, 404);
+        abort_unless($this->mayAccess($request, $order), 404);
 
         if (! $order->payment_status->canAcceptPayment()) {
             return redirect()->route('checkout.confirmation', $order->order_number);
@@ -38,7 +38,7 @@ class PaymentController extends Controller
 
     public function returned(Request $request, Order $order, PaymentSyncCoordinator $coordinator): RedirectResponse
     {
-        abort_unless($request->session()->get('last_order_number') === $order->order_number, 404);
+        abort_unless($this->mayAccess($request, $order), 404);
 
         $payment = $order->payments()->whereNotNull('provider_payment_id')->latest('id')->first();
 
@@ -98,5 +98,21 @@ class PaymentController extends Controller
         }
 
         return response('', 200);
+    }
+
+    private function mayAccess(Request $request, Order $order): bool
+    {
+        if ($request->session()->get('last_order_number') === $order->order_number) {
+            return true;
+        }
+
+        $guestAccessExpiresAt = (int) $request->session()->get("guest_order_access.{$order->order_number}", 0);
+        if ($guestAccessExpiresAt > now()->getTimestamp() && $order->user_id === null) {
+            return true;
+        }
+
+        $user = $request->user();
+
+        return $user && ! $user->isStaff() && $order->user_id === $user->id;
     }
 }
