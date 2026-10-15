@@ -91,7 +91,14 @@ jobs:
       - run: composer validate --strict
       - run: composer install --no-interaction --prefer-dist
       - name: Validate MariaDB schema and commerce concurrency
-        run: php vendor/bin/phpunit -c phpunit.mariadb.xml
+        run: |
+          php vendor/bin/phpunit -c phpunit.mariadb.xml --list-tests | tee /tmp/raoza-mariadb-tests.txt
+          test_count=$(grep -c '^ - ' /tmp/raoza-mariadb-tests.txt)
+          echo "MariaDB tests discovered: ${test_count}"
+          test "${test_count}" -eq 19
+          grep -Fq 'test_invoice_numbers_are_unique_and_sequential_under_concurrency' /tmp/raoza-mariadb-tests.txt
+          grep -Fq 'test_order_row_lock_excludes_a_second_shipping_transaction_on_mariadb' /tmp/raoza-mariadb-tests.txt
+          php vendor/bin/phpunit -c phpunit.mariadb.xml --testdox
 
   e2e:
     runs-on: ubuntu-latest
