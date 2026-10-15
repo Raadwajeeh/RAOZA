@@ -9,7 +9,7 @@ use App\Domain\Payments\Enums\PaymentAttemptStatus;
 use App\Domain\Payments\Data\PaymentSyncResult;
 use App\Domain\Payments\Models\Payment;
 use App\Mail\PaymentConfirmedMail;
-use Illuminate\Support\Facades\Mail;
+use App\Services\TransactionalNotificationService;
 
 class PaymentSyncCoordinator
 {
@@ -17,6 +17,7 @@ class PaymentSyncCoordinator
         private PaymentService $payments,
         private AnalyticsService $analytics,
         private AccountingDocumentService $accountingDocuments,
+        private TransactionalNotificationService $notifications,
     ) {}
 
     public function sync(Payment $payment, string $eventType): PaymentSyncResult
@@ -25,7 +26,7 @@ class PaymentSyncCoordinator
 
         $order = Order::query()->findOrFail($payment->order_id);
         if ($result->becamePaid) {
-            Mail::to($order->customer_email)->queue(new PaymentConfirmedMail($order));
+            $this->notifications->queueOnce('payment.confirmed:'.$result->payment->id, $order->customer_email, new PaymentConfirmedMail($order), $result->payment);
             $this->analytics->recordVerifiedPurchase($order);
         }
         if ($result->payment->status === PaymentAttemptStatus::Paid) {

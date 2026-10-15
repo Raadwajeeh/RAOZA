@@ -2,19 +2,23 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
 
 const nav = [
-    { section: 'Dashboard', items: [['Overview', '/admin']] },
-    { section: 'Catalog', items: [['Products', '/admin/products'], ['Categories', '/admin/categories'], ['Collections', '/admin/collections']] },
-    { section: 'Inventory', items: [['Stock & movements', '/admin/inventory']] },
-    { section: 'Sales', items: [['Orders', '/admin/orders'], ['Production & shipping', '/admin/fulfillment'], ['Returns & refunds', '/admin/returns']] },
-    { section: 'Customers', items: [['Customer records', '/admin/customers']] },
-    { section: 'Marketing', items: [['Discounts', '/admin/discounts'], ['Content', '/admin/content']] },
-    { section: 'Store', items: [['Store & shipping', '/admin/store']] },
+    { section: 'Dashboard', items: [['Overview', '/admin', 'dashboard.view'], ['Operational issues', '/admin/operations', 'operations.view']] },
+    { section: 'Catalog', items: [['Products', '/admin/products', 'products.view'], ['Categories', '/admin/categories', 'products.view'], ['Collections', '/admin/collections', 'products.view']] },
+    { section: 'Inventory', items: [['Stock & movements', '/admin/inventory', 'inventory.view']] },
+    { section: 'Sales', items: [['Orders', '/admin/orders', 'orders.view'], ['Production & shipping', '/admin/fulfillment', 'fulfillment.manage'], ['Returns & refunds', '/admin/returns', 'returns.view']] },
+    { section: 'Customers', items: [['Customer records', '/admin/customers', 'customers.view']] },
+    { section: 'Marketing', items: [['Discounts', '/admin/discounts', 'discounts.manage'], ['Content', '/admin/content', 'content.manage']] },
+    { section: 'Store', items: [['Store & shipping', '/admin/store', 'content.manage']] },
+    { section: 'Security', items: [['Staff', '/admin/staff', 'staff.manage'], ['Audit log', '/admin/audit', 'audit.view']] },
 ] as const;
 
 export default function AdminLayout({ children }: PropsWithChildren) {
-    const page = usePage<{ flash?: { success?: string } }>();
+    const page = usePage<{ flash?: { success?: string }; auth: { user?: { permissions?: string[] } } }>();
+    const permissions = page.props.auth.user?.permissions ?? [];
+    const allowed = (permission: string) => permissions.includes('*') || permissions.includes(permission);
+    const visibleNav = nav.map(group => ({ ...group, items: group.items.filter(item => allowed(item[2])) })).filter(group => group.items.length);
     const active = (href: string) => href === '/admin' ? page.url === href : page.url === href || page.url.startsWith(`${href}/`);
-    const current = nav.flatMap(group => group.items.map(item => ({ section: group.section, name: item[0], href: item[1] }))).find(item => active(item.href));
+    const current = visibleNav.flatMap(group => group.items.map(item => ({ section: group.section, name: item[0], href: item[1] }))).find(item => active(item.href));
     const logout = () => router.post('/logout');
 
     return <div className="min-h-screen bg-raoza-cream text-raoza-black">
@@ -25,7 +29,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
                 <p className="mt-1 text-[10px] uppercase tracking-[.25em] opacity-70">Operations</p>
             </div>
             <nav aria-label="Admin" className="flex gap-5 overflow-x-auto px-3 pb-4 lg:block lg:max-h-[calc(100vh-190px)] lg:space-y-5 lg:overflow-y-auto">
-                {nav.map(group => <div key={group.section} className="shrink-0"><p className="mb-1 px-3 text-[9px] font-semibold uppercase tracking-[.2em] text-raoza-gold">{group.section}</p>{group.items.map(([name, href]) => {
+                {visibleNav.map(group => <div key={group.section} className="shrink-0"><p className="mb-1 px-3 text-[9px] font-semibold uppercase tracking-[.2em] text-raoza-gold">{group.section}</p>{group.items.map(([name, href]) => {
                     const isCurrent = active(href);
                     return <Link key={href} href={href} aria-current={isCurrent ? 'page' : undefined} className={`block whitespace-nowrap px-3 py-2 text-sm ${isCurrent ? 'raoza-admin-nav-active' : 'hover:bg-white/10'}`}>{name}</Link>;
                 })}</div>)}

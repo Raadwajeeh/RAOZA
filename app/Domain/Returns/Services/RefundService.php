@@ -21,13 +21,14 @@ use App\Mail\RefundSucceededMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use App\Services\TransactionalNotificationService;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
 class RefundService
 {
-    public function __construct(private PaymentProvider $provider, private AccountingDocumentService $accountingDocuments) {}
+    public function __construct(private PaymentProvider $provider, private AccountingDocumentService $accountingDocuments, private TransactionalNotificationService $notifications) {}
 
     public function request(Order $order, int $amount, ?ReturnRequest $return = null, ?string $reason = null, ?string $idempotencyKey = null): Refund
     {
@@ -236,7 +237,7 @@ class RefundService
             $this->recalculateOrderPaymentStatus($order, $payment);
 
             if ($becameSucceeded) {
-                Mail::to($order->customer_email)->queue(new RefundSucceededMail($order, $locked->refresh()));
+                $this->notifications->queueOnce('refund.succeeded:'.$locked->id, $order->customer_email, new RefundSucceededMail($order, $locked->refresh()), $locked);
             }
 
             return $locked->refresh();

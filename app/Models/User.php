@@ -15,12 +15,12 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'phone', 'password', 'is_admin', 'role'];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'is_admin', 'role', 'staff_disabled_at', 'staff_disabled_by'];
     protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
     {
-        return ['email_verified_at' => 'datetime', 'password' => 'hashed', 'is_admin' => 'boolean', 'role' => AdminRole::class];
+        return ['email_verified_at' => 'datetime', 'password' => 'hashed', 'is_admin' => 'boolean', 'role' => AdminRole::class, 'staff_disabled_at' => 'datetime'];
     }
 
     public function orders(): HasMany
@@ -46,4 +46,10 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return ($this->role?->isStaff() ?? false) || $this->is_admin;
     }
+
+    public function isActiveStaff(): bool
+    {
+        return $this->isStaff() && $this->staff_disabled_at === null;
+    }
+
 }

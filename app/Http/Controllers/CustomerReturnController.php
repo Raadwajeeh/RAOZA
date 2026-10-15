@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
+use App\Mail\ReturnRequestReceivedMail;
+use App\Services\TransactionalNotificationService;
 
 class CustomerReturnController extends Controller
 {
@@ -60,7 +62,8 @@ class CustomerReturnController extends Controller
         }
 
         try {
-            $returnService->create($order, $data['items'], 'Customer portal request', $data['customer_note'] ?? null);
+            $created = $returnService->create($order, $data['items'], 'Customer portal request', $data['customer_note'] ?? null);
+            app(TransactionalNotificationService::class)->queueOnce('return.requested:'.$created->id, $order->customer_email, new ReturnRequestReceivedMail($created->load('order')), $created);
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages(['return' => $exception->getMessage()]);
         }

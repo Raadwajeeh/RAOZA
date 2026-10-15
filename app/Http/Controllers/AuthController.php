@@ -13,7 +13,7 @@ class AuthController extends Controller
     {
         $credentials = $request->validate(['email'=>['required','email'],'password'=>['required','string']]);
         if (! Auth::attempt($credentials, $request->boolean('remember'))) throw ValidationException::withMessages(['email'=>'The provided credentials do not match our records.']);
-        if (! $request->user()?->isStaff()) {
+        if (! $request->user()?->isActiveStaff()) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

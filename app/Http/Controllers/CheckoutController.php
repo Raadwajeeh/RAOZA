@@ -13,7 +13,7 @@ use App\Http\Middleware\ResolveCart;
 use App\Mail\OrderReceivedMail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
+use App\Services\TransactionalNotificationService;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -60,7 +60,7 @@ class CheckoutController extends Controller
         $request->session()->put('last_order_number', $order->order_number);
 
         if ($order->wasRecentlyCreated) {
-            Mail::to($order->customer_email)->queue(new OrderReceivedMail($order));
+            app(TransactionalNotificationService::class)->queueOnce('order.received:'.$order->id, $order->customer_email, new OrderReceivedMail($order), $order);
         }
 
         return redirect()->route('checkout.confirmation', ['order' => $order->order_number]);

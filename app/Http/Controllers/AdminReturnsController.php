@@ -14,6 +14,9 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
+use App\Mail\ReturnRequestReceivedMail;
+use App\Mail\ReturnStatusUpdatedMail;
+use App\Services\TransactionalNotificationService;
 
 class AdminReturnsController extends Controller {
  public function __construct(private AuditService $audit){}
@@ -29,12 +32,14 @@ class AdminReturnsController extends Controller {
   $d=$r->validate(['reason_summary'=>['nullable','string','max:255'],'customer_note'=>['nullable','string','max:2000'],'items'=>['required','array','min:1'],'items.*.order_item_id'=>['required','integer'],'items.*.quantity'=>['required','integer','min:1'],'items.*.reason_code'=>['required','string','max:64'],'items.*.reason_text'=>['nullable','string','max:1000']]);
   try{$created=$service->create($order,$d['items'],$d['reason_summary']??null,$d['customer_note']??null);}catch(RuntimeException $e){return back()->withErrors(['return'=>$e->getMessage()]);}
   $this->audit->record($r,'return.created',$created,null,['order_id'=>$order->id,'item_count'=>count($d['items']),'status'=>$created->status->value]);
+  app(TransactionalNotificationService::class)->queueOnce('return.requested:'.$created->id,$order->customer_email,new ReturnRequestReceivedMail($created->load('order')),$created);
   return back()->with('success','Return request created.');
  }
  public function transition(Request $r,ReturnRequest $return,ReturnService $service):RedirectResponse {
   $d=$r->validate(['status'=>['required','in:under_review,approved,awaiting_return,received,inspected,completed,rejected,cancelled'],'note'=>['nullable','string','max:2000']]);
   $before=['status'=>$return->status->value];try{$updated=$service->transition($return,ReturnStatus::from($d['status']),$d['note']??null);}catch(RuntimeException $e){return back()->withErrors(['return'=>$e->getMessage()]);}
   $this->audit->record($r,'return.transitioned',$updated,$before,['status'=>$updated->status->value]);
+  app(TransactionalNotificationService::class)->queueOnce('return.status:'.$updated->id.':'.$updated->status->value,$updated->load('order')->order->customer_email,new ReturnStatusUpdatedMail($updated),$updated);
   return back()->with('success','Return status updated.');
  }
  public function inspect(Request $r,ReturnItem $returnItem,ReturnService $service):RedirectResponse {

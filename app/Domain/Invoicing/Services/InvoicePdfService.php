@@ -36,6 +36,17 @@ final class InvoicePdfService
         return $contents;
     }
 
+    public function regenerateStored(Invoice $invoice): Invoice
+    {
+        $invoice->loadMissing(['lines', 'order', 'originalInvoice']);
+        $contents = $this->render($invoice);
+        if (! str_starts_with($contents, '%PDF-')) throw new RuntimeException('The generated document is not a valid PDF stream.');
+        $path = 'accounting/'.$invoice->document_type->value.'/'.$invoice->issued_at->format('Y').'/'.$invoice->document_number.'.pdf';
+        if (! Storage::disk((string) config('invoicing.disk', 'local'))->put($path, $contents)) throw new RuntimeException('The accounting PDF could not be written to private storage.');
+        $invoice->update(['pdf_path'=>$path,'pdf_sha256'=>hash('sha256',$contents),'pdf_generated_at'=>now()]);
+        return $invoice->refresh();
+    }
+
     private function render(Invoice $invoice): string
     {
         $options = new Options();

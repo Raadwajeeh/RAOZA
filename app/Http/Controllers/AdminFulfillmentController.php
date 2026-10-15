@@ -11,7 +11,7 @@ use App\Domain\Fulfillment\Services\FulfillmentService;
 use App\Mail\OrderShippedMail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
+use App\Services\TransactionalNotificationService;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -59,7 +59,7 @@ class AdminFulfillmentController extends Controller
         try{$result=$service->handOver($shipment,$data,$request->user()->id);}catch(RuntimeException $exception){return back()->withErrors(['fulfillment'=>$exception->getMessage()]);}
         if(!$result->changed)return back()->with('success','Duplicate operation safely ignored.');
         $this->audit->record($request,'shipment.handed_over',$result->shipment,$before,$result->shipment->toArray());
-        Mail::to($result->shipment->order->customer_email)->queue(new OrderShippedMail($result->shipment->order,$result->shipment));
+        app(TransactionalNotificationService::class)->queueOnce('shipment.handed-over:'.$result->shipment->id, $result->shipment->order->customer_email, new OrderShippedMail($result->shipment->order,$result->shipment), $result->shipment);
         return back()->with('success','Carrier handover confirmed.');
     }
 

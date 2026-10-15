@@ -18,6 +18,7 @@ class HandleInertiaRequests extends Middleware
                 ...$request->user()->only('id', 'name', 'email', 'phone', 'role'),
                 'email_verified' => $request->user()->hasVerifiedEmail(),
                 'is_staff' => $request->user()->isStaff(),
+                'permissions' => ($request->user()->is_admin && $request->user()->role === \App\Domain\Admin\Enums\AdminRole::Customer) ? ['*'] : ($request->user()->role?->permissions() ?? []),
             ] : null],
             'cart'=>['count'=>$cart?->items()->sum('quantity') ?? 0],
             'navigation'=>fn()=>[

@@ -10,13 +10,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
+use App\Services\TransactionalNotificationService;
 
 class SendGuestOrderAccessLink implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 1;
 
     public int $timeout = 30;
 
@@ -28,7 +28,7 @@ class SendGuestOrderAccessLink implements ShouldQueue
         return [30, 120];
     }
 
-    public function handle(GuestOrderAccessService $access): void
+    public function handle(GuestOrderAccessService $access, TransactionalNotificationService $notifications): void
     {
         $order = Order::query()->whereKey($this->orderId)->whereNull('user_id')->first();
 
@@ -37,6 +37,6 @@ class SendGuestOrderAccessLink implements ShouldQueue
         }
 
         $issued = $access->issue($order);
-        Mail::to($order->customer_email)->send(new GuestOrderAccessMail($order, $issued['url'], $issued['expires_at']));
+        $notifications->sendOnce('guest-order-access:'.hash('sha256', $issued['url']), $order->customer_email, new GuestOrderAccessMail($order, $issued['url'], $issued['expires_at']), $order);
     }
 }

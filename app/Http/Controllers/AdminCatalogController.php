@@ -193,7 +193,7 @@ class AdminCatalogController
             throw ValidationException::withMessages(['options' => 'This would create more than 100 variants. Reduce the option values first.']);
         }
         $created = 0;
-        DB::transaction(function () use ($product, $d, $combinations, $r, &$created) {
+          DB::transaction(function () use ($product, $d, $combinations, $r, &$created) {
             foreach ($combinations as $combo) {
                 $ids = collect($combo)->pluck('id')->all();
                 $signature = VariantSignature::fromOptionValueIds($ids);
@@ -215,7 +215,8 @@ class AdminCatalogController
                 }
                 $created++;
             }
-        });
+          });
+          $this->audit->record($r, 'product.variants.generated', $product, null, ['created_count' => $created, 'opening_stock_each' => $d['opening_stock'], 'status' => $d['status']]);
 
         return back()->with('success', $created.' missing variant combination'.($created === 1 ? '' : 's').' created.');
     }
@@ -252,7 +253,9 @@ class AdminCatalogController
         if (count($owned) !== count(array_unique($d['image_ids'])) || count($owned) !== $product->images()->count()) {
             abort(422);
         }
-        DB::transaction(fn () => collect($d['image_ids'])->each(fn ($id, $position) => ProductImage::whereKey($id)->update(['position' => $position])));
+          $before = $product->images()->orderBy('position')->pluck('id')->all();
+          DB::transaction(fn () => collect($d['image_ids'])->each(fn ($id, $position) => ProductImage::whereKey($id)->update(['position' => $position])));
+          $this->audit->record($r, 'product.images.reordered', $product, ['image_ids' => $before], ['image_ids' => $d['image_ids']]);
 
         return back()->with('success', 'Image order saved. The first image is the storefront primary image.');
     }
