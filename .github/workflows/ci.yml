@@ -133,7 +133,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: npm ci --no-audit --no-fund
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:e2e
       - if: failure()
         uses: actions/upload-artifact@v4

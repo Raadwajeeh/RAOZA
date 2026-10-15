@@ -14,6 +14,7 @@ async function addDemoProduct(page:Page) {
 }
 
 async function payDemo(page:Page) {
+  await page.getByRole('checkbox',{name:/agree to the Terms/}).check();
   await page.getByRole('button',{name:'Continue to payment'}).click();
   await expect(page).toHaveURL(/order-confirmation/);
   await page.getByRole('button',{name:'Continue to secure payment'}).click();

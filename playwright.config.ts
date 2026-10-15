@@ -15,6 +15,10 @@ export default defineConfig({
   globalSetup:'./tests/E2E/global-setup.ts',
   reporter:process.env.CI ? [['line'],['html',{open:'never'}]] : 'list',
   use:{baseURL:'http://127.0.0.1:8000',trace:'retain-on-failure',screenshot:'only-on-failure'},
-  projects:[{name:'chromium',use:{...devices['Desktop Chrome']}}],
+  projects:[
+    {name:'chromium',use:{...devices['Desktop Chrome']}},
+    {name:'firefox-smoke',testMatch:/store-readiness\.spec\.ts/,use:{...devices['Desktop Firefox']}},
+    {name:'webkit-smoke',testMatch:/store-readiness\.spec\.ts/,grepInvert:/checkout exposes/,use:{...devices['Desktop Safari']}},
+  ],
   webServer:{command:'php -S 127.0.0.1:8000 -t public tests/E2E/server.php',url:'http://127.0.0.1:8000/health/live',reuseExistingServer:false,timeout:120_000,stdout:'ignore',stderr:'pipe'},
 });

@@ -49,7 +49,7 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
                 </nav>
                 <NavLink href="/cart" className="raoza-cart-link" active={path === '/cart'}>Bag <span aria-hidden="true">({String(cartCount).padStart(2, '0')})</span><span className="sr-only"> with {cartCount} items</span></NavLink>
             </div>
-            <nav aria-label="Mobile" id="mobile-nav" aria-hidden={!open} className={`raoza-mobile-nav ${open ? 'is-open' : ''}`}>
+            <nav aria-label="Mobile" id="mobile-nav" aria-hidden={!open} inert={!open} className={`raoza-mobile-nav ${open ? 'is-open' : ''}`}>
                 <div className="raoza-mobile-primary"><span>Menu / RAOZA</span><NavLink href="/shop">Shop all</NavLink>{categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`}>{category.name}</NavLink>)}</div>
                 <div className="raoza-mobile-secondary"><div><p>Collections</p>{collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`}>{collection.name}</NavLink>)}</div><div><p>RAOZA</p><NavLink href={accountHref}>Account</NavLink><NavLink href="/pages/about">About</NavLink><NavLink href="/pages/contact">Contact</NavLink><NavLink href="/pages/faq">Help & FAQ</NavLink></div></div>
                 <div className="raoza-mobile-foot"><NavLink href="/cart">Bag ({String(cartCount).padStart(2, '0')})</NavLink><span>Urban Editorial / NL</span></div>

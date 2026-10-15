@@ -94,5 +94,7 @@ class StorefrontCompletenessTest extends TestCase
         ])->implode(' ');
 
         $this->assertDoesNotMatchRegularExpression('/\b(demo|placeholder|test copy|coming later)\b/i', $copy);
+        $this->assertStringContainsString('not an official or prepaid carrier label', $copy);
+        $this->assertDoesNotMatchRegularExpression('/return.{0,40}\b\d+\s*days?\b|\b\d+\s*days?.{0,40}return/i', $copy);
     }
 }

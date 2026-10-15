@@ -90,6 +90,7 @@ class CustomerAddressBookTest extends TestCase
                 'phone' => null,
                 'shipping_address_id' => $address->id,
                 'shipping_method_id' => $fixture['shipping']->id,
+                'terms_accepted' => true,
                 'billing_same_as_shipping' => true,
             ]);
         $response->assertRedirect()->assertSessionHasNoErrors();
@@ -115,6 +116,7 @@ class CustomerAddressBookTest extends TestCase
                 'email' => $attacker->email,
                 'shipping_address_id' => $address->id,
                 'shipping_method_id' => $fixture['shipping']->id,
+                'terms_accepted' => true,
                 'billing_same_as_shipping' => true,
             ])->assertNotFound();
         $this->assertDatabaseCount('orders', 0);

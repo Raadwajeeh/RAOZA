@@ -81,6 +81,7 @@ class CheckoutController extends Controller
             'email' => ['required', 'email:rfc', 'max:254'], 'phone' => ['nullable', 'string', 'max:40'],
             'shipping_address_id' => ['nullable', 'integer'], 'billing_address_id' => ['nullable', 'integer'],
             'shipping_method_id' => ['required', 'integer', 'exists:shipping_methods,id'], 'discount_code' => ['nullable', 'string', 'max:50'],
+            'terms_accepted' => ['accepted'],
             'billing_same_as_shipping' => ['required', 'boolean'],
             'shipping_first_name' => ['required', 'string', 'max:100'], 'shipping_last_name' => ['required', 'string', 'max:100'],
             'shipping_company' => ['nullable', 'string', 'max:150'], 'shipping_street' => ['required', 'string', 'max:150'],

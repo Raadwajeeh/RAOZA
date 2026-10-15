@@ -71,7 +71,7 @@ final class StorefrontContentSeeder extends Seeder
             'currency' => 'EUR',
             'active' => true,
             'position' => 1,
-            'configuration' => ['description' => 'Tracked delivery within the Netherlands. The delivery estimate is confirmed after dispatch.'],
+            'configuration' => ['description' => 'Delivery within the Netherlands. Tracking is shown only when it is provided during manual fulfillment.'],
         ]);
         ShippingMethod::query()->where('code', 'nl-free')->update([
             'name' => 'Complimentary delivery',
@@ -119,7 +119,7 @@ final class StorefrontContentSeeder extends Seeder
             'shipping' => $this->page('Shipping & Delivery', 'shipping', 'Delivery options are shown transparently during checkout and calculated from the current server-side shipping methods.', [
                 ['heading' => 'Delivery area', 'body' => 'RAOZA currently accepts shipping addresses in the Netherlands. If no valid delivery method is available for an order, checkout cannot continue.'],
                 ['heading' => 'Costs and timing', 'body' => 'The checkout displays every available method and its current price before the order is created. Processing begins after verified payment. Delivery timing depends on production, dispatch and the carrier; we do not promise an exact arrival date before shipment.'],
-                ['heading' => 'Tracking and shipment confirmation', 'body' => 'A shipment confirmation is sent when the order is marked as shipped. When a tracking link is available, it is included in that message.'],
+                ['heading' => 'Tracking and shipment confirmation', 'body' => 'A shipment confirmation is sent when the order is marked as shipped. Tracking appears only when it has been entered during fulfillment. A printable internal address sheet is not an official or prepaid carrier label.'],
                 ['heading' => 'Address problems', 'body' => 'Check the address carefully at checkout. If something is wrong, contact customer service immediately. We can only change details when the current production and shipment state still allows it.'],
             ], 'Shipping and delivery information — RAOZA'),
             'returns' => $this->page('Returns & Refunds', 'returns', 'RAOZA reviews return requests carefully and keeps the physical return and payment refund steps clear.', [
