@@ -9,7 +9,7 @@ export default function ContentIndex({ pages }: { pages: any[] }) {
     const [edit, setEdit] = useState<any>(null);
     const create = useForm({ key: '', title: '', slug: '', seo_title: '', seo_description: '' });
     const form = useForm({ title: '', slug: '', status: 'draft', seo_title: '', seo_description: '', canonical_url: '', og_image: '', indexable: true, content: { intro: '', sections: [] as Section[] } });
-    const load = (page: any) => { setEdit(page); form.setData({ title: page.title, slug: page.slug, status: page.status, seo_title: page.seo_title ?? '', seo_description: page.seo_description ?? '', canonical_url: page.canonical_url ?? '', og_image: page.og_image ?? '', indexable: page.indexable, content: { intro: page.content?.intro ?? '', sections: Array.isArray(page.content?.sections) ? page.content.sections : [] } }); };
+    const load = (page: any) => { const value = page.draft_payload ?? page; setEdit(page); form.setData({ title: value.title, slug: value.slug, status: value.status, seo_title: value.seo_title ?? '', seo_description: value.seo_description ?? '', canonical_url: value.canonical_url ?? '', og_image: value.og_image ?? '', indexable: value.indexable, content: { intro: value.content?.intro ?? '', sections: Array.isArray(value.content?.sections) ? value.content.sections : [] } }); };
     const sections = form.data.content.sections;
     const updateSection = (index: number, patch: Partial<Section>) => form.setData('content', { ...form.data.content, sections: sections.map((section, position) => position === index ? { ...section, ...patch } : section) });
     return <AdminLayout><Head title="Content" />

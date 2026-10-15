@@ -32,6 +32,7 @@ use App\Http\Controllers\GuestDocumentController;
 use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\AdminAuditController;
 use App\Http\Controllers\AdminOperationsController;
+use App\Http\Controllers\AdminOwnerReadinessController;
 use App\Domain\Content\Enums\ContentStatus;
 use App\Domain\Content\Models\ContentPage;
 use App\Domain\Catalog\Enums\ProductStatus;
@@ -188,6 +189,8 @@ Route::middleware(['auth','admin'])->prefix('admin')->name('admin.')->group(func
     Route::patch('/staff/{staff}', [AdminStaffController::class, 'update'])->middleware(['permission:staff.manage','throttle:10,1'])->name('staff.update');
     Route::get('/audit', AdminAuditController::class)->middleware('permission:audit.view')->name('audit.index');
     Route::get('/operations', [AdminOperationsController::class, 'index'])->middleware('permission:operations.view')->name('operations.index');
+    Route::get('/readiness', [AdminOwnerReadinessController::class, 'index'])->middleware('permission:readiness.manage')->name('readiness.index');
+    Route::post('/readiness/decisions', [AdminOwnerReadinessController::class, 'decide'])->middleware(['permission:readiness.manage','throttle:20,1'])->name('readiness.decide');
     Route::post('/operations/payments/{payment}/retry', [AdminOperationsController::class, 'retryPayment'])->middleware(['permission:operations.manage','throttle:5,1'])->name('operations.payments.retry');
     Route::post('/operations/invoices/{invoice}/regenerate-pdf', [AdminOperationsController::class, 'regeneratePdf'])->middleware(['permission:operations.manage','throttle:5,1'])->name('operations.invoices.regenerate-pdf');
 });

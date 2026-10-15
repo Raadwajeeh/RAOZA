@@ -8,7 +8,7 @@ const nav = [
     { section: 'Sales', items: [['Orders', '/admin/orders', 'orders.view'], ['Production & shipping', '/admin/fulfillment', 'fulfillment.manage'], ['Returns & refunds', '/admin/returns', 'returns.view']] },
     { section: 'Customers', items: [['Customer records', '/admin/customers', 'customers.view']] },
     { section: 'Marketing', items: [['Discounts', '/admin/discounts', 'discounts.manage'], ['Content', '/admin/content', 'content.manage']] },
-    { section: 'Store', items: [['Store & shipping', '/admin/store', 'content.manage']] },
+    { section: 'Store', items: [['Launch readiness', '/admin/readiness', 'readiness.manage'], ['Store & shipping', '/admin/store', 'content.manage']] },
     { section: 'Security', items: [['Staff', '/admin/staff', 'staff.manage'], ['Audit log', '/admin/audit', 'audit.view']] },
 ] as const;
 

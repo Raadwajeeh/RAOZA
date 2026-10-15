@@ -76,6 +76,10 @@ test.describe.serial('RAOZA isolated commerce journey',()=>{
     await page.getByLabel('Password').fill(['RaozaDemo','2026'].join('!'));
     await page.getByRole('button',{name:'Sign in'}).click();
     await expect(page).toHaveURL(/\/admin$/);
+    await page.goto('/admin/readiness');
+    await expect(page.getByRole('heading',{name:'Launch readiness'})).toBeVisible();
+    await expect(page.getByText('Issuance disabled (safe default)')).toBeVisible();
+    await expect(page.getByText('Legal review pending',{exact:true})).toBeVisible();
     await page.goto('/admin/fulfillment');
     await page.getByRole('button',{name:'Start printing'}).click();
     await page.getByRole('button',{name:'Ready to ship'}).click();

@@ -5,13 +5,15 @@ import AdminLayout from '../../../Layouts/AdminLayout';
 const field = 'mt-1 min-h-11 w-full border border-raoza-primary/20 bg-white px-3 py-2 text-sm';
 const emptyShipping = { name: '', code: '', provider: 'manual', price: 0, currency: 'EUR', active: true, position: 0, description: '' };
 
-export default function StoreIndex({ store, shippingMethods }: any) {
-    const info = useForm({ brand_name: store.brand_name ?? 'RAOZA', company_name: store.company_name ?? '', contact_email: store.contact_email ?? '', support_email: store.support_email ?? '', contact_phone: store.contact_phone ?? '', street: store.street ?? '', house_number: store.house_number ?? '', addition: store.addition ?? '', postal_code: store.postal_code ?? '', city: store.city ?? '', country: store.country ?? 'Netherlands', country_code: store.country_code ?? 'NL', registration_number: store.registration_number ?? '', vat_number: store.vat_number ?? '', currency: store.currency ?? 'EUR', locale: store.locale ?? 'en-NL', shipping_origin: store.shipping_origin ?? 'Netherlands', customer_service: store.customer_service ?? '', instagram_url: store.instagram_url ?? '' });
+export default function StoreIndex({ store, storeDraft, shippingMethods }: any) {
+    const editable = storeDraft ?? store;
+    const info = useForm({ brand_name: editable.brand_name ?? 'RAOZA', company_name: editable.company_name ?? '', contact_email: editable.contact_email ?? '', support_email: editable.support_email ?? '', contact_phone: editable.contact_phone ?? '', street: editable.street ?? '', house_number: editable.house_number ?? '', addition: editable.addition ?? '', postal_code: editable.postal_code ?? '', city: editable.city ?? '', country: editable.country ?? 'Netherlands', country_code: editable.country_code ?? 'NL', registration_number: editable.registration_number ?? '', vat_number: editable.vat_number ?? '', currency: editable.currency ?? 'EUR', locale: editable.locale ?? 'en-NL', shipping_origin: editable.shipping_origin ?? 'Netherlands', customer_service: editable.customer_service ?? '', instagram_url: editable.instagram_url ?? '' });
     const [editing, setEditing] = useState<any>(null);
     const shipping = useForm(emptyShipping);
     const edit = (method: any) => {
         setEditing(method);
-        shipping.setData({ name: method.name, code: method.code, provider: method.provider || 'manual', price: method.price, currency: method.currency, active: method.active, position: method.position, description: method.configuration?.description || '' });
+        const value = method.pending_configuration ?? method;
+        shipping.setData({ name: value.name, code: value.code, provider: value.provider || 'manual', price: value.price, currency: value.currency, active: value.active, position: value.position, description: value.configuration?.description || '' });
     };
     const reset = () => { setEditing(null); shipping.setData(emptyShipping); shipping.clearErrors(); };
 
@@ -19,10 +21,10 @@ export default function StoreIndex({ store, shippingMethods }: any) {
         <div><p className="text-xs uppercase tracking-[.18em] text-raoza-secondary">Store</p><h1 className="mt-2 font-display text-4xl text-raoza-primary sm:text-5xl">Store configuration</h1><p className="mt-2 max-w-2xl text-sm opacity-60">Manage legitimate operational information and checkout shipping methods. Credentials and infrastructure settings stay outside the Admin.</p></div>
         <div className="mt-8 grid gap-8 xl:grid-cols-2">
             <form onSubmit={e => { e.preventDefault(); info.patch('/admin/store', { preserveScroll: true }); }} className="border bg-white p-5 sm:p-6">
-                <h2 className="font-display text-2xl">Company & contact information</h2><p className="mt-1 text-xs opacity-55">Leave unknown values empty; nothing is fabricated or automatically published.</p>
+                <h2 className="font-display text-2xl">Company & contact draft</h2><p className="mt-1 text-xs opacity-55">Leave unknown values empty. Saving creates a review draft and does not change public details or invoice snapshots.</p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                     <label className="text-sm">Brand name<input required className={field} value={info.data.brand_name} onChange={e => info.setData('brand_name', e.target.value)} /></label>
-                    <label className="text-sm">Company name<input required className={field} value={info.data.company_name} onChange={e => info.setData('company_name', e.target.value)} /></label>
+                    <label className="text-sm">Company name<input className={field} value={info.data.company_name} onChange={e => info.setData('company_name', e.target.value)} /></label>
                     <label className="text-sm">Contact email<input type="email" className={field} value={info.data.contact_email} onChange={e => info.setData('contact_email', e.target.value)} /></label>
                     <label className="text-sm">Support email<input type="email" className={field} value={info.data.support_email} onChange={e => info.setData('support_email', e.target.value)} /></label>
                     <label className="text-sm">Contact phone<input className={field} value={info.data.contact_phone} onChange={e => info.setData('contact_phone', e.target.value)} /></label>
@@ -42,12 +44,12 @@ export default function StoreIndex({ store, shippingMethods }: any) {
                     <label className="text-sm sm:col-span-2">Instagram URL<input type="url" className={field} value={info.data.instagram_url} onChange={e => info.setData('instagram_url', e.target.value)} /></label>
                 </div>
                 {Object.keys(info.errors).length > 0 && <p role="alert" className="mt-4 text-sm text-red-800">{Object.values(info.errors)[0]}</p>}
-                <button disabled={info.processing} className="mt-5 min-h-12 bg-raoza-primary px-5 text-sm text-raoza-cream">Save store information</button>
+                <button disabled={info.processing} className="mt-5 min-h-12 bg-raoza-primary px-5 text-sm text-raoza-cream">Save review draft</button>
             </form>
             <div>
                 <section className="space-y-3">
-                    <div><h2 className="font-display text-3xl text-raoza-primary">Shipping methods</h2><p className="mt-1 text-xs opacity-55">Active methods are offered by the authoritative checkout quote service.</p></div>
-                    {shippingMethods.map((method: any) => <article className="border bg-white p-4" key={method.id}><div className="flex justify-between gap-3"><div><b>{method.name}</b><p className="text-xs opacity-55">{method.code} · {method.provider || 'manual'}</p></div><span className="text-sm">{(method.price / 100).toLocaleString('nl-NL', { style: 'currency', currency: method.currency })}</span></div><p className="mt-3 text-sm opacity-65">{method.configuration?.description || 'No customer-facing description.'}</p><div className="mt-3 flex justify-between text-xs"><span>{method.active ? 'Active at checkout' : 'Disabled'} · position {method.position}</span><button onClick={() => edit(method)} className="min-h-11 px-3 underline">Edit</button></div></article>)}
+                    <div><h2 className="font-display text-3xl text-raoza-primary">Shipping methods</h2><p className="mt-1 text-xs opacity-55">Edits are staged. Existing checkout values remain unchanged and new methods are created disabled.</p></div>
+                    {shippingMethods.map((method: any) => <article className="border bg-white p-4" key={method.id}><div className="flex justify-between gap-3"><div><b>{method.name}</b><p className="text-xs opacity-55">{method.code} · {method.provider || 'manual'}</p></div><span className="text-sm">{(method.price / 100).toLocaleString('nl-NL', { style: 'currency', currency: method.currency })}</span></div><p className="mt-3 text-sm opacity-65">{method.configuration?.description || 'No customer-facing description.'}</p><div className="mt-3 flex justify-between text-xs"><span>{method.active ? 'Active at checkout' : 'Disabled'} · position {method.position}{method.pending_configuration ? ' · Pending changes' : ''}</span><button onClick={() => edit(method)} className="min-h-11 px-3 underline">Edit draft</button></div></article>)}
                 </section>
                 <form onSubmit={e => { e.preventDefault(); editing ? shipping.patch(`/admin/store/shipping-methods/${editing.id}`, { preserveScroll: true, onSuccess: reset }) : shipping.post('/admin/store/shipping-methods', { preserveScroll: true, onSuccess: reset }); }} className="mt-6 border bg-white p-5">
                     <div className="flex justify-between"><h3 className="font-display text-2xl">{editing ? 'Edit shipping method' : 'New shipping method'}</h3>{editing && <button type="button" onClick={reset} className="text-sm underline">Cancel</button>}</div>
