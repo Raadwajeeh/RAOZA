@@ -6,7 +6,7 @@ import SeoHead, { Seo } from '../../Components/SeoHead';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 
 type Image={id?:number;url:string;alt:string;width?:number|null;height?:number|null};
-type OptionValue={id:number;value:string;metadata?:unknown};
+type OptionValue={id:number;value:string;metadata?:{swatch?:string;hex?:string}|null};
 type Option={id:number;name:string;values:OptionValue[]};
 type Variant={id:number;sku:string;price:number;availableQuantity:number;available:boolean;optionValueIds:number[];options:Record<string,string>;images:Image[]};
 type Taxonomy={name:string;slug:string}|null;
@@ -96,7 +96,7 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
                     {product.shortDescription&&<p className="raoza-product-intro">{product.shortDescription}</p>}
                     {product.slug==='raoza-mark-tee'&&<p className="raoza-product-colour-note"><strong>Campaign colour note</strong><span>The gallery shows the RAOZA campaign colour direction. Currently purchasable colours are listed below.</span></p>}
 
-                    <div className="raoza-product-options">{product.options.map(option=><fieldset key={option.id} className="raoza-product-option"><legend><span>{option.name}</span><span>{option.values.find(v=>v.id===selected[option.id])?.value||'Select'}</span></legend><div className="raoza-option-values">{option.values.map(value=>{const possible=valuePossible(option.id,value.id);const available=valueAvailable(option.id,value.id);const active=selected[option.id]===value.id;const disabled=!possible||!available;return <button type="button" key={value.id} disabled={disabled} aria-pressed={active} title={disabled?'Unavailable for the current selection':undefined} onClick={()=>choose(option.id,value.id)} className={`${active?'is-active':''} ${disabled?'is-unavailable':''}`}>{value.value}{disabled&&<span className="sr-only"> — unavailable</span>}</button>})}</div></fieldset>)}</div>
+                    <div className="raoza-product-options">{product.options.map(option=><fieldset key={option.id} className="raoza-product-option"><legend><span>{option.name}</span><span>{option.values.find(v=>v.id===selected[option.id])?.value||'Select an option'}</span></legend><div className={`raoza-option-values ${option.name.toLowerCase()==='color'?'is-colors':''}`}>{option.values.map(value=>{const possible=valuePossible(option.id,value.id);const available=valueAvailable(option.id,value.id);const active=selected[option.id]===value.id;const disabled=!possible||!available;const swatch=value.metadata?.swatch??value.metadata?.hex;return <button type="button" key={value.id} disabled={disabled} aria-pressed={active} title={disabled?'Unavailable for the current selection':undefined} onClick={()=>choose(option.id,value.id)} className={`${active?'is-active':''} ${disabled?'is-unavailable':''}`}>{swatch&&<i aria-hidden="true" style={{backgroundColor:swatch}}/>}{value.value}{disabled&&<span className="sr-only"> — unavailable</span>}</button>})}</div>{option.name.toLowerCase()==='size'&&<Link href="/pages/size-guide" className="raoza-size-guide-link">Size guide · product fit notes apply</Link>}</fieldset>)}</div>
 
                     <div className="raoza-purchase-panel">
                         {complete&&!variant&&<p className="raoza-product-alert" role="alert">This combination is not available.</p>}
@@ -106,7 +106,7 @@ export default function ProductPage({product,seo}:{product:Product;seo:Seo}) {
                         {page.props.errors?.quantity&&<p className="raoza-product-alert" role="alert">{page.props.errors.quantity}</p>}{page.props.errors?.variant&&<p className="raoza-product-alert" role="alert">{page.props.errors.variant}</p>}{page.props.flash?.success&&<div className="raoza-product-success" role="status"><span>{page.props.flash.success}</span><Link href="/cart">View bag <span aria-hidden="true">→</span></Link></div>}
                     </div>
 
-                    <div className="raoza-product-meta"><div><span>Availability</span><strong className={variant?.available&&variant.availableQuantity<=3?'is-low':''}>{stockMessage}</strong></div><div><span>SKU</span><strong>{variant?.sku||'—'}</strong></div></div>
+                    <div className="raoza-product-meta" aria-live="polite"><div><span>Availability</span><strong className={variant?.available&&variant.availableQuantity<=3?'is-low':''}>{stockMessage}</strong></div><div><span>Selected style</span><strong>{variant?Object.values(variant.options).join(' · '):'—'}</strong></div><div><span>SKU</span><strong>{variant?.sku||'—'}</strong></div></div>
 
                     {product.description&&<details className="raoza-product-details" open><summary>Description <span>+</span></summary><p>{product.description}</p></details>}
                     {product.fitNotes&&<details className="raoza-product-details"><summary>Size & fit <span>+</span></summary><p>{product.fitNotes}</p><Link href="/pages/size-guide" className="mt-3 inline-block text-xs underline underline-offset-4">View size guide</Link></details>}

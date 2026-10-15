@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { closeSync, existsSync, openSync, unlinkSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, unlinkSync } from 'node:fs';
 
 export default async function globalSetup() {
+  mkdirSync('output/playwright',{recursive:true});
   const database=process.env.DB_DATABASE!;
   if (existsSync(database)) unlinkSync(database);
   closeSync(openSync(database,'w'));
