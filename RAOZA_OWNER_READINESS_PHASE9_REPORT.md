@@ -110,4 +110,14 @@ New PHPUnit coverage verifies Owner-only access, customer/staff isolation, refus
 
 ## GitHub delivery
 
-GitHub Actions results and the final delivery commit are recorded in the final handoff after the pushed workflow completes. Required jobs: `test`, `mariadb-commerce`, `e2e` and `secrets`.
+Implementation commit: `335490a98c38561c5e64f31f41f586b81b005f71`  
+GitHub Actions: <https://github.com/Raadwajeeh/RAOZA/actions/runs/38800830431>
+
+The implementation run completed successfully:
+
+- `test`: success;
+- `mariadb-commerce`: success;
+- `e2e`: success; and
+- `secrets`: success.
+
+The final report-only delivery commit and its Actions run are recorded in the final handoff to avoid embedding a self-referential commit identifier in this report.
