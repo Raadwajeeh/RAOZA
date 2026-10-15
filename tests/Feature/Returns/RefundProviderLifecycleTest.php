@@ -61,7 +61,7 @@ class RefundProviderLifecycleTest extends TestCase
         $this->assertSame($stockAfterPayment, $fixture['inventories'][0]->fresh()->quantity_on_hand);
         $this->assertSame(0, $fixture['inventories'][0]->fresh()->quantity_reserved);
         $this->assertDatabaseCount('inventory_movements', 1);
-        Mail::assertQueued(RefundSucceededMail::class, 1);
+        Mail::assertSent(RefundSucceededMail::class, 1);
     }
 
     public function test_remote_refund_is_recovered_by_stable_reference_before_create(): void

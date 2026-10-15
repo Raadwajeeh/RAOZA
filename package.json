@@ -5,10 +5,14 @@
     "build": "vite build",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "security:audit": "npm audit --audit-level=high",
     "images:optimize": "node scripts/optimize-catalog-images.mjs"
   },
   "devDependencies": {
     "@inertiajs/react": "^2.0.0",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

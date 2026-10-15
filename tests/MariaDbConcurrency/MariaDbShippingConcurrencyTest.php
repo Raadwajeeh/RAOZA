@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\MariaDbConcurrency;
 
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;

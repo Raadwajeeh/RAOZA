@@ -79,7 +79,7 @@ class PaymentLifecycleIntegrityTest extends TestCase
             ->get(route('payments.return', $fixture['order']->order_number))
             ->assertRedirect(route('checkout.confirmation', $fixture['order']->order_number));
 
-        Mail::assertQueued(PaymentConfirmedMail::class, 1);
+        Mail::assertSent(PaymentConfirmedMail::class, 1);
         $this->assertSame(1, AnalyticsEvent::query()->where('event_name', 'purchase')->where('order_id', $fixture['order']->id)->count());
         $this->assertDatabaseCount('payment_events', 1);
         $this->assertDatabaseCount('inventory_movements', 1);

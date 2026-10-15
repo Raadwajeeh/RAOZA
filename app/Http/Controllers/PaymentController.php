@@ -51,7 +51,7 @@ class PaymentController extends Controller
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'payment_id' => $payment->id,
-                    'provider_payment_id' => $payment->provider_payment_id,
+                    'provider_payment_id_hash' => hash('sha256', (string) $payment->provider_payment_id),
                     'exception_type' => $exception::class,
                 ]);
             }
@@ -90,7 +90,7 @@ class PaymentController extends Controller
                 'operation' => 'payment_webhook_sync',
                 'order_id' => $payment->order_id,
                 'payment_id' => $payment->id,
-                'provider_payment_id' => $payment->provider_payment_id,
+                'provider_payment_id_hash' => hash('sha256', (string) $payment->provider_payment_id),
                 'exception_type' => $exception::class,
             ]);
 

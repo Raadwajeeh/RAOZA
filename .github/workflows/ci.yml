@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,19 +23,25 @@ jobs:
       PAYMENT_PROVIDER: mollie
       MOLLIE_API_KEY: test_placeholder_not_used_by_unit_tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - name: Prepare Laravel writable paths
+        run: |
+          mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs
+          chmod -R u+rwX,g+rwX bootstrap/cache storage
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: pdo_sqlite, pdo_mysql
           coverage: none
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
       - run: composer validate --strict
       - run: composer install --no-interaction --prefer-dist
-      - run: npm install --no-audit --no-fund
+      - run: composer audit
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm run build
       - run: php artisan production:verify-build
@@ -69,7 +78,11 @@ jobs:
       DATABASE_URL: ''
       RAOZA_MARIADB_TEST_OPT_IN: phase7d2-disposable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - name: Prepare Laravel writable paths
+        run: |
+          mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs
+          chmod -R u+rwX,g+rwX bootstrap/cache storage
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -79,3 +92,56 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - name: Validate MariaDB schema and commerce concurrency
         run: php vendor/bin/phpunit -c phpunit.mariadb.xml
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_DEBUG: false
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: sqlite
+      CACHE_STORE: array
+      SESSION_DRIVER: database
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      PAYMENT_PROVIDER: demo
+      RAOZA_DEMO_MODE: true
+      INVOICE_ISSUANCE_ENABLED: false
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare Laravel writable paths
+        run: |
+          mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs
+          chmod -R u+rwX,g+rwX bootstrap/cache storage
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - run: composer install --no-interaction --prefer-dist
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Scan repository history with Gitleaks
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 detect --source=/repo --redact --no-banner --exit-code=1

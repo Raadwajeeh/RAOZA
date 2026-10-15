@@ -156,7 +156,7 @@ class MultiCarrierShippingTest extends TestCase
         $operation=(string)Str::uuid();
         $this->actingAs($staff)->post("/admin/shipments/{$shipment->id}/hand-over",['operation_key'=>$operation])->assertSessionHasNoErrors();
         $this->post("/admin/shipments/{$shipment->id}/hand-over",['operation_key'=>$operation])->assertSessionHasNoErrors();
-        Mail::assertQueued(\App\Mail\OrderShippedMail::class,1);
+        Mail::assertSent(\App\Mail\OrderShippedMail::class,1);
         $this->assertDatabaseHas('audit_logs',['action'=>'shipment.handed_over','subject_id'=>(string)$shipment->id]);
     }
 

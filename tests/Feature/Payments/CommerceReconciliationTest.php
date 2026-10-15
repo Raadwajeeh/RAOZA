@@ -50,7 +50,7 @@ class CommerceReconciliationTest extends TestCase
         $this->assertSame(0, $fixture['inventories'][0]->fresh()->quantity_reserved);
         $this->assertDatabaseCount('inventory_movements', 1);
         $this->assertDatabaseCount('payment_events', 1);
-        Mail::assertQueued(PaymentConfirmedMail::class, 1);
+        Mail::assertSent(PaymentConfirmedMail::class, 1);
         $this->assertSame(1, AnalyticsEvent::query()->where('event_name', 'purchase')->where('order_id', $fixture['order']->id)->count());
     }
 
@@ -95,7 +95,7 @@ class CommerceReconciliationTest extends TestCase
         $this->assertSame(PaymentStatus::Paid, $fixture['order']->fresh()->payment_status);
         $this->assertDatabaseCount('inventory_movements', 1);
         $this->assertDatabaseCount('payment_events', 1);
-        Mail::assertQueued(PaymentConfirmedMail::class, 1);
+        Mail::assertSent(PaymentConfirmedMail::class, 1);
     }
 
     public function test_reconciliation_recovers_an_uncertain_payment_create_with_the_same_key(): void

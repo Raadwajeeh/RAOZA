@@ -19,6 +19,9 @@ yarn-error.log
 /.vscode
 /.playwright-cli
 /output/playwright
+/playwright-report
+/test-results
+/database/e2e.sqlite
 /artifacts
 /LOGO/
 /Projecten/

@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
+use App\Jobs\DeliverTransactionalNotification;
 use LogicException;
 use Tests\Support\BuildsCommerceFixtures;
 use Tests\TestCase;
@@ -87,7 +88,7 @@ class AdminPhase5OperationsTest extends TestCase
         $service=app(TransactionalNotificationService::class);
         $this->assertTrue($service->queueOnce('test:'.$order->id,$order->customer_email,new OrderReceivedMail($order),$order));
         $this->assertFalse($service->queueOnce('test:'.$order->id,$order->customer_email,new OrderReceivedMail($order),$order));
-        Mail::assertQueued(OrderReceivedMail::class,1);
+        Queue::assertPushed(DeliverTransactionalNotification::class,1);
         $this->assertDatabaseCount('notification_dispatches',1);
         $this->assertDatabaseMissing('notification_dispatches',['recipient_hash'=>$order->customer_email]);
     }
