@@ -4,7 +4,10 @@ test.describe('store readiness smoke', () => {
   test('public trust pages and footer links are reachable', async ({ page }) => {
     await page.goto('/');
     const necessary = page.getByRole('button', { name: 'Necessary only' });
-    if (await necessary.isVisible()) await necessary.click();
+    if (await necessary.isVisible()) {
+      await necessary.click();
+      await expect(necessary).toBeHidden();
+    }
 
     const expected = [
       ['Contact', '/pages/contact'],
@@ -29,7 +32,10 @@ test.describe('store readiness smoke', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/shop');
     const necessary = page.getByRole('button', { name: 'Necessary only' });
-    if (await necessary.isVisible()) await necessary.click();
+    if (await necessary.isVisible()) {
+      await necessary.click();
+      await expect(necessary).toBeHidden();
+    }
 
     const menu = page.getByRole('navigation', { name: 'Mobile', includeHidden: true });
     await expect(menu).toHaveAttribute('inert', '');
