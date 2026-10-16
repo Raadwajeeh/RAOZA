@@ -11,6 +11,7 @@
     "images:optimize": "node scripts/optimize-catalog-images.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@inertiajs/react": "^2.0.0",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "^4.0.0",

@@ -33,7 +33,7 @@ function CampaignPanel({ product, source, index }: { product: HomeProduct; sourc
         </Link>
         <div className="raoza-campaign-copy">
             <div><p>{product.collection?.name ?? 'RAOZA edit'}</p><h3>{product.name}</h3></div>
-            <Link href={`/products/${product.slug}`} aria-label={`View ${product.name}`}>Discover <span aria-hidden="true">↗</span></Link>
+            <Link href={`/products/${product.slug}`} aria-label={`Discover ${product.name}`}>Discover <span aria-hidden="true">↗</span></Link>
         </div>
     </article>;
 }
@@ -94,7 +94,7 @@ export default function Home({ featuredProducts, collections, seo }: { featuredP
                 <div className="raoza-current-edit-inner raoza-container">
                     <header className="raoza-current-edit-head"><p className="raoza-eyebrow">Current product edit / T-shirts</p><h2 id="current-edit-heading">The graphic<br /><em>wardrobe.</em></h2><p>Three expressions of the RAOZA identity, moving from quiet signature detail to a stronger editorial graphic.</p><Link href="/categories/t-shirts" className="raoza-text-link">Shop T-shirts <span aria-hidden="true">→</span></Link></header>
                     <div className="raoza-current-edit-products">{productEdit.map(product => <ProductEdit key={product.id} product={product} />)}</div>
-                    {signature && <Link href={`/products/${signature.slug}`} className="raoza-current-edit-campaign group" aria-label={`View ${signature.name}`}><EditorialImage source={image(signature, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" /><span>Core / 01</span><b>Quiet identity.<br />Everyday form.</b></Link>}
+                    {signature && <Link href={`/products/${signature.slug}`} className="raoza-current-edit-campaign group"><EditorialImage source={image(signature, 4, 3)} className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.02]" /><span>Core / 01</span><b>Quiet identity.<br />Everyday form.</b></Link>}
                 </div>
             </section>}
 

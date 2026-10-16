@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, useEffect, useState } from 'react';
+import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import ConsentBanner from '../Components/ConsentBanner';
 
 type NavItem = { name: string; slug: string };
@@ -8,6 +8,8 @@ const NavLink = ({ href, children, onClick, className = '', active = false }: { 
 export default function StorefrontLayout({ children }: PropsWithChildren) {
     const [open, setOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const menuButton = useRef<HTMLButtonElement>(null);
+    const mobileNav = useRef<HTMLElement>(null);
     const page = usePage<{ auth?: { user: { is_staff: boolean } | null }; cart?: { count: number }; store?: { brand_name: string; support_email: string; customer_service: string; instagram_url?: string | null }; navigation?: { categories: NavItem[]; collections: NavItem[] } }>();
     const cartCount = page.props.cart?.count ?? 0;
     const store = page.props.store ?? { brand_name: 'RAOZA', support_email: 'hello@raoza.nl', customer_service: '' };
@@ -21,14 +23,33 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
     useEffect(() => { setOpen(false); }, [page.url]);
     useEffect(() => { document.body.style.overflow = open ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [open]);
     useEffect(() => { const onScroll = () => setScrolled(window.scrollY > 12); onScroll(); window.addEventListener('scroll', onScroll, { passive: true }); return () => window.removeEventListener('scroll', onScroll); }, []);
-    useEffect(() => { const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false); window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, []);
+    useEffect(() => {
+        if (!open) return;
+        const focusable = () => [menuButton.current, ...Array.from(mobileNav.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [])].filter(Boolean) as HTMLElement[];
+        const focusTimer = window.setTimeout(() => focusable()[1]?.focus(), 50);
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+                requestAnimationFrame(() => menuButton.current?.focus());
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const items = focusable();
+            const index = items.indexOf(document.activeElement as HTMLElement);
+            if (event.shiftKey && index === 1) { event.preventDefault(); menuButton.current?.focus(); }
+            else if (event.shiftKey && index <= 0) { event.preventDefault(); items.at(-1)?.focus(); }
+            if (!event.shiftKey && index === items.length - 1) { event.preventDefault(); items[0]?.focus(); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => { window.clearTimeout(focusTimer); window.removeEventListener('keydown', onKey); };
+    }, [open]);
 
     return <div className="min-h-screen bg-raoza-cream text-raoza-black">
-        <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-24 bg-raoza-primary px-4 py-3 text-xs text-raoza-cream focus:translate-y-0">Skip to content</a>
+        <a id="raoza-skip-link" href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-24 bg-raoza-primary px-4 py-3 text-xs text-raoza-cream focus:translate-y-0">Skip to content</a>
         <div className="raoza-announcement"><span>Design-led printed apparel</span><span aria-hidden="true">✦</span><span>Free delivery is shown when available at checkout</span></div>
         <header className={`raoza-site-header ${isHome ? 'is-home' : ''} ${scrolled ? 'is-scrolled' : ''} ${open ? 'is-menu-open' : ''}`}>
             <div className="raoza-header-inner">
-                <button type="button" className="raoza-menu-button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="mobile-nav" aria-label={open ? 'Close menu' : 'Open menu'}><span className={open ? 'is-open' : ''} /><span className={open ? 'is-open' : ''} /><b>{open ? 'Close' : 'Menu'}</b></button>
+                <button ref={menuButton} type="button" className="raoza-menu-button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="mobile-nav" aria-label={open ? 'Close menu' : 'Open menu'}><span className={open ? 'is-open' : ''} /><span className={open ? 'is-open' : ''} /><b>{open ? 'Close' : 'Menu'}</b></button>
                 <nav aria-label="Primary" className="raoza-desktop-nav raoza-desktop-nav-left">
                     <NavLink href="/shop" active={active('/shop')}>Shop</NavLink>
                     {isHome
@@ -49,7 +70,7 @@ export default function StorefrontLayout({ children }: PropsWithChildren) {
                 </nav>
                 <NavLink href="/cart" className="raoza-cart-link" active={path === '/cart'}>Bag <span aria-hidden="true">({String(cartCount).padStart(2, '0')})</span><span className="sr-only"> with {cartCount} items</span></NavLink>
             </div>
-            <nav aria-label="Mobile" id="mobile-nav" aria-hidden={!open} inert={!open} className={`raoza-mobile-nav ${open ? 'is-open' : ''}`}>
+            <nav ref={mobileNav} aria-label="Mobile" id="mobile-nav" aria-hidden={!open} inert={!open} className={`raoza-mobile-nav ${open ? 'is-open' : ''}`}>
                 <div className="raoza-mobile-primary"><span>Menu / RAOZA</span><NavLink href="/shop">Shop all</NavLink>{categories.map(category => <NavLink key={category.slug} href={`/categories/${category.slug}`}>{category.name}</NavLink>)}</div>
                 <div className="raoza-mobile-secondary"><div><p>Collections</p>{collections.map(collection => <NavLink key={collection.slug} href={`/collections/${collection.slug}`}>{collection.name}</NavLink>)}</div><div><p>RAOZA</p><NavLink href={accountHref}>Account</NavLink><NavLink href="/pages/about">About</NavLink><NavLink href="/pages/contact">Contact</NavLink><NavLink href="/pages/faq">Help & FAQ</NavLink></div></div>
                 <div className="raoza-mobile-foot"><NavLink href="/cart">Bag ({String(cartCount).padStart(2, '0')})</NavLink><span>Urban Editorial / NL</span></div>
