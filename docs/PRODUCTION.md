@@ -218,4 +218,4 @@ Periodic:
 - Perform and record an isolated restore drill at least quarterly and after backup-system changes.
 - Review dependency/security updates and mail/payment-provider operational notices.
 
-See `docs/BACKUP_RESTORE.md` for the backup boundary and restore drill.
+See [BACKUP_AND_RESTORE](BACKUP_AND_RESTORE.md) for database-specific backup procedures, the recovery boundary and isolated restore drills.
