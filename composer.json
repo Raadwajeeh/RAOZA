@@ -29,6 +29,8 @@
     "post-root-package-install": ["@php -r \"file_exists('.env') || copy('.env.example', '.env');\""],
     "post-create-project-cmd": ["@php artisan key:generate --ansi"],
     "dev": ["Composer\\Config::disableProcessTimeout", "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'"],
+    "dev:windows": ["Composer\\Config::disableProcessTimeout", "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1"],
+    "dev:windows:queue": ["Composer\\Config::disableProcessTimeout", "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Queue"],
     "test": ["@php artisan config:clear --ansi", "@php artisan test"]
   },
   "config": {"optimize-autoloader": true, "preferred-install": "dist", "sort-packages": true, "allow-plugins": {"php-http/discovery": true}},

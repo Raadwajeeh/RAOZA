@@ -12,11 +12,15 @@ npm ci
 copy .env.example .env
 php artisan key:generate
 php artisan migrate
-npm run build
-php artisan serve
+php artisan db:seed --class=LocalQaSeeder
+composer run dev:windows
 ```
 
-`DatabaseSeeder` and `LocalQaSeeder` are non-production fixtures. Never run them to bootstrap production. Local mail defaults to non-delivery and real payment, mail, hosting and owner data remain externally configured.
+Open `http://127.0.0.1:8080`. The Windows launcher pins Laravel to port 8080 and Vite to port 5175, checks both ports before starting, verifies that Laravel is in the `local` environment, and keeps the origins consistent. Its process-scoped overrides force demo payments, log-only mail, disabled analytics, and non-secure localhost cookies without rewriting `.env`. Add the optional local queue worker with `composer run dev:windows:queue`. Press `Ctrl+C` to stop the processes.
+
+Do not start the PHP built-in server with `public/index.php` as its router (for example, `php -S 127.0.0.1:8080 -t public public/index.php`). That command routes existing public images through Laravel and returns HTML for image URLs. Use the launcher above or `php artisan serve --host=127.0.0.1 --port=8080 --no-reload`. The `--no-reload` flag avoids the Herd/PHP 8.4 Windows subprocess bind failure reproduced during Phase 11.
+
+`DatabaseSeeder` and `LocalQaSeeder` are local/testing-only fixtures. The explicit command above is repeatable and does not reset the database; it creates synthetic products, stock, shipping methods, discounts, content, and `.test` accounts, then maps the catalog to the reviewed repository photography. Never run either seeder to bootstrap production. Local mail defaults to non-delivery and real payment, mail, hosting and owner data remain externally configured.
 
 ## Testing safety
 
