@@ -11,6 +11,27 @@ class StorefrontAssetReadinessTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_catalog_ships_complete_webp_sets_without_deploying_png_sources(): void
+    {
+        $catalogRoot = public_path('catalog');
+        $pngSources = glob($catalogRoot.'/*/*.png') ?: [];
+        $webpFiles = glob($catalogRoot.'/*/*.webp') ?: [];
+        $baseImages = array_values(array_filter(
+            $webpFiles,
+            fn (string $path): bool => ! preg_match('/-(640|960)\.webp$/', $path),
+        ));
+
+        $this->assertCount(0, $pngSources);
+        $this->assertCount(90, $webpFiles);
+        $this->assertCount(30, $baseImages);
+
+        foreach ($baseImages as $baseImage) {
+            $stem = substr($baseImage, 0, -5);
+            $this->assertFileExists($stem.'-640.webp');
+            $this->assertFileExists($stem.'-960.webp');
+        }
+    }
+
     public function test_versioned_brand_and_campaign_images_are_real_public_images(): void
     {
         $paths = [

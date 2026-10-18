@@ -45,7 +45,7 @@ final class OfficialCatalogSeeder extends Seeder
                     'seo_title' => $item['name'].' — RAOZA',
                     'seo_description' => $item['short_description'],
                     'canonical_url' => null,
-                    'og_image' => preg_replace('/\.png$/', '.webp', $item['images'][0][0]),
+                    'og_image' => $item['images'][0][0],
                     'indexable' => true,
                     'published_at' => $product->published_at ?? now(),
                 ]);
@@ -55,10 +55,9 @@ final class OfficialCatalogSeeder extends Seeder
                 $product->categories()->sync([$category->id => ['position' => $item['position']]]);
                 $product->collections()->sync([$collection->id => ['position' => $item['position']]]);
 
-                $paths = collect($item['images'])->pluck(0)->map(fn (string $path) => preg_replace('/\.png$/', '.webp', $path))->all();
+                $paths = collect($item['images'])->pluck(0)->all();
                 $product->images()->whereNull('variant_id')->whereNotIn('path', $paths)->delete();
                 foreach ($item['images'] as $position => [$path, $alt]) {
-                    $path = preg_replace('/\.png$/', '.webp', $path);
                     $absolute = public_path(ltrim($path, '/'));
                     if (! is_file($absolute)) {
                         throw new RuntimeException("Official catalog image is missing: {$path}");
@@ -124,11 +123,11 @@ final class OfficialCatalogSeeder extends Seeder
                 'product_details' => ['Minimal / Premium / Brand-led'],
                 'official_color' => null,
                 'images' => [
-                    ['/catalog/signature-tee/raoza-signature-tee-front.png', 'RAOZA Signature Tee front view'],
-                    ['/catalog/signature-tee/raoza-signature-tee-back.png', 'RAOZA Signature Tee back view'],
-                    ['/catalog/signature-tee/raoza-signature-tee-detail.png', 'RAOZA Signature Tee wordmark detail'],
-                    ['/catalog/signature-tee/raoza-signature-tee-editorial.png', 'Model wearing the RAOZA Signature Tee'],
-                    ['/catalog/signature-tee/raoza-signature-tee-lifestyle.png', 'RAOZA Signature Tee styled in an editorial setting'],
+                    ['/catalog/signature-tee/raoza-signature-tee-front.webp', 'RAOZA Signature Tee front view'],
+                    ['/catalog/signature-tee/raoza-signature-tee-back.webp', 'RAOZA Signature Tee back view'],
+                    ['/catalog/signature-tee/raoza-signature-tee-detail.webp', 'RAOZA Signature Tee wordmark detail'],
+                    ['/catalog/signature-tee/raoza-signature-tee-editorial.webp', 'Model wearing the RAOZA Signature Tee'],
+                    ['/catalog/signature-tee/raoza-signature-tee-lifestyle.webp', 'RAOZA Signature Tee styled in an editorial setting'],
                 ],
             ],
             [
@@ -144,11 +143,11 @@ final class OfficialCatalogSeeder extends Seeder
                 'product_details' => ['Editorial / Graphic-led / Urban'],
                 'official_color' => null,
                 'images' => [
-                    ['/catalog/editorial-tee/raoza-editorial-tee-front.png', 'RAOZA Editorial Tee front view'],
-                    ['/catalog/editorial-tee/raoza-editorial-tee-back.png', 'RAOZA Editorial Tee back graphic'],
-                    ['/catalog/editorial-tee/raoza-editorial-tee-detail.png', 'RAOZA Editorial Tee monogram detail'],
-                    ['/catalog/editorial-tee/raoza-editorial-tee-editorial.png', 'Model showing the back of the RAOZA Editorial Tee'],
-                    ['/catalog/editorial-tee/raoza-editorial-tee-lifestyle.png', 'Model wearing the RAOZA Editorial Tee'],
+                    ['/catalog/editorial-tee/raoza-editorial-tee-front.webp', 'RAOZA Editorial Tee front view'],
+                    ['/catalog/editorial-tee/raoza-editorial-tee-back.webp', 'RAOZA Editorial Tee back graphic'],
+                    ['/catalog/editorial-tee/raoza-editorial-tee-detail.webp', 'RAOZA Editorial Tee monogram detail'],
+                    ['/catalog/editorial-tee/raoza-editorial-tee-editorial.webp', 'Model showing the back of the RAOZA Editorial Tee'],
+                    ['/catalog/editorial-tee/raoza-editorial-tee-lifestyle.webp', 'Model wearing the RAOZA Editorial Tee'],
                 ],
             ],
             [
@@ -164,12 +163,12 @@ final class OfficialCatalogSeeder extends Seeder
                 'product_details' => ['Deep Burgundy', 'RA monogram', 'Monogram-led / Minimal / Premium'],
                 'official_color' => null,
                 'images' => [
-                    ['/catalog/mark-tee/raoza-mark-tee-front.png', 'Deep Burgundy RAOZA Mark Tee front view'],
-                    ['/catalog/mark-tee/raoza-mark-tee-back.png', 'Deep Burgundy RAOZA Mark Tee back view'],
-                    ['/catalog/mark-tee/raoza-mark-tee-detail.png', 'RAOZA Mark Tee monogram detail'],
-                    ['/catalog/mark-tee/raoza-mark-tee-editorial.png', 'Model wearing the RAOZA Mark Tee'],
-                    ['/catalog/mark-tee/raoza-mark-tee-back-editorial.png', 'Model showing the back of the RAOZA Mark Tee'],
-                    ['/catalog/mark-tee/raoza-mark-tee-lifestyle.png', 'Woman wearing the unisex RAOZA Mark Tee'],
+                    ['/catalog/mark-tee/raoza-mark-tee-front.webp', 'Deep Burgundy RAOZA Mark Tee front view'],
+                    ['/catalog/mark-tee/raoza-mark-tee-back.webp', 'Deep Burgundy RAOZA Mark Tee back view'],
+                    ['/catalog/mark-tee/raoza-mark-tee-detail.webp', 'RAOZA Mark Tee monogram detail'],
+                    ['/catalog/mark-tee/raoza-mark-tee-editorial.webp', 'Model wearing the RAOZA Mark Tee'],
+                    ['/catalog/mark-tee/raoza-mark-tee-back-editorial.webp', 'Model showing the back of the RAOZA Mark Tee'],
+                    ['/catalog/mark-tee/raoza-mark-tee-lifestyle.webp', 'Woman wearing the unisex RAOZA Mark Tee'],
                 ],
             ],
             [
@@ -185,11 +184,11 @@ final class OfficialCatalogSeeder extends Seeder
                 'product_details' => ['Dropped shoulder', 'Structured hood', 'Small RAOZA wordmark at front', 'Four-point sparkle detail at back'],
                 'official_color' => [['Black', 'Near Black'], 'Near Black', '#111111'],
                 'images' => [
-                    ['/catalog/essential-hoodie/raoza-essential-hoodie-front.png', 'Model wearing the Near Black RAOZA Essential Hoodie'],
-                    ['/catalog/essential-hoodie/raoza-essential-hoodie-back.png', 'RAOZA Essential Hoodie back sparkle detail'],
-                    ['/catalog/essential-hoodie/raoza-essential-hoodie-detail.png', 'RAOZA Essential Hoodie wordmark detail'],
-                    ['/catalog/essential-hoodie/raoza-essential-hoodie-editorial.png', 'Man wearing the RAOZA Essential Hoodie'],
-                    ['/catalog/essential-hoodie/raoza-essential-hoodie-lifestyle.png', 'Woman wearing the RAOZA Essential Hoodie'],
+                    ['/catalog/essential-hoodie/raoza-essential-hoodie-front.webp', 'Model wearing the Near Black RAOZA Essential Hoodie'],
+                    ['/catalog/essential-hoodie/raoza-essential-hoodie-back.webp', 'RAOZA Essential Hoodie back sparkle detail'],
+                    ['/catalog/essential-hoodie/raoza-essential-hoodie-detail.webp', 'RAOZA Essential Hoodie wordmark detail'],
+                    ['/catalog/essential-hoodie/raoza-essential-hoodie-editorial.webp', 'Man wearing the RAOZA Essential Hoodie'],
+                    ['/catalog/essential-hoodie/raoza-essential-hoodie-lifestyle.webp', 'Woman wearing the RAOZA Essential Hoodie'],
                 ],
             ],
             [
@@ -205,11 +204,11 @@ final class OfficialCatalogSeeder extends Seeder
                 'product_details' => ['Dropped shoulder', 'Structured hood', 'RA monogram at left chest', 'RAOZA wordmark at back'],
                 'official_color' => [['Cream', 'Warm Cream'], 'Warm Cream', '#FFF6E6'],
                 'images' => [
-                    ['/catalog/structured-hoodie/raoza-structured-hoodie-front.png', 'Model wearing the Warm Cream RAOZA Structured Hoodie'],
-                    ['/catalog/structured-hoodie/raoza-structured-hoodie-back.png', 'RAOZA Structured Hoodie back wordmark'],
-                    ['/catalog/structured-hoodie/raoza-structured-hoodie-detail.png', 'RAOZA Structured Hoodie monogram detail'],
-                    ['/catalog/structured-hoodie/raoza-structured-hoodie-editorial.png', 'Woman wearing the RAOZA Structured Hoodie'],
-                    ['/catalog/structured-hoodie/raoza-structured-hoodie-lifestyle.png', 'RAOZA Structured Hoodie full-length styling'],
+                    ['/catalog/structured-hoodie/raoza-structured-hoodie-front.webp', 'Model wearing the Warm Cream RAOZA Structured Hoodie'],
+                    ['/catalog/structured-hoodie/raoza-structured-hoodie-back.webp', 'RAOZA Structured Hoodie back wordmark'],
+                    ['/catalog/structured-hoodie/raoza-structured-hoodie-detail.webp', 'RAOZA Structured Hoodie monogram detail'],
+                    ['/catalog/structured-hoodie/raoza-structured-hoodie-editorial.webp', 'Woman wearing the RAOZA Structured Hoodie'],
+                    ['/catalog/structured-hoodie/raoza-structured-hoodie-lifestyle.webp', 'RAOZA Structured Hoodie full-length styling'],
                 ],
             ],
             [
@@ -225,10 +224,10 @@ final class OfficialCatalogSeeder extends Seeder
                 'product_details' => ['Unisex presentation', 'Deep Burgundy', 'Muted Gold RA monogram at front', 'Muted Gold RAOZA wordmark at back'],
                 'official_color' => [['Burgundy', 'Deep Burgundy'], 'Deep Burgundy', '#330313'],
                 'images' => [
-                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-front.png', 'Man wearing the unisex RAOZA Deep Burgundy Hoodie'],
-                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-back.png', 'RAOZA Deep Burgundy Hoodie muted gold back wordmark'],
-                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-detail.png', 'RAOZA Deep Burgundy Hoodie muted gold monogram detail'],
-                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-editorial.png', 'Man wearing the unisex RAOZA Deep Burgundy Hoodie in an editorial setting'],
+                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-front.webp', 'Man wearing the unisex RAOZA Deep Burgundy Hoodie'],
+                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-back.webp', 'RAOZA Deep Burgundy Hoodie muted gold back wordmark'],
+                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-detail.webp', 'RAOZA Deep Burgundy Hoodie muted gold monogram detail'],
+                    ['/catalog/deep-burgundy-hoodie/raoza-deep-burgundy-hoodie-editorial.webp', 'Man wearing the unisex RAOZA Deep Burgundy Hoodie in an editorial setting'],
                 ],
             ],
         ];
