@@ -39,3 +39,12 @@ Use `php artisan production:bootstrap <reviewed-manifest> --dry-run` before appl
 Use `.env.production.example` only as a sanitized host-secret checklist. Before a deployment boundary, `php artisan production:preflight` validates the resolved configuration without printing secrets; the final separately authorized Live gate adds `--require-live-services`. Neither command provisions infrastructure or contacts Mollie/mail providers.
 
 For the Hostinger staging target, follow [HOSTINGER_DEPLOYMENT](docs/HOSTINGER_DEPLOYMENT.md), [PRODUCTION_CATALOG](docs/PRODUCTION_CATALOG.md), [IMAGE_STORAGE](docs/IMAGE_STORAGE.md), [BACKUP_AND_RESTORE](docs/BACKUP_AND_RESTORE.md), and [PRODUCTION_READINESS](docs/PRODUCTION_READINESS.md). The provider-neutral [PRODUCTION](docs/PRODUCTION.md), [LAUNCH_CHECKLIST](docs/LAUNCH_CHECKLIST.md), and [SECURITY](SECURITY.md) remain supporting background. Production still requires owner-approved business/legal/catalog data and externally verified hosting, TLS, mail, Mollie, monitoring and restore behavior.
+
+## Documentation index
+
+- Deployment: [Hostinger procedure](docs/HOSTINGER_DEPLOYMENT.md), [first-deployment verification](docs/FIRST_DEPLOYMENT_VERIFICATION.md), and [production operations](docs/PRODUCTION.md).
+- Readiness and owner decisions: [production readiness](docs/PRODUCTION_READINESS.md), [launch checklist](docs/LAUNCH_CHECKLIST.md), and the active [owner approval checklist](docs/OWNER_APPROVAL_CHECKLIST.md).
+- Data and recovery: [production catalog](docs/PRODUCTION_CATALOG.md), [image storage](docs/IMAGE_STORAGE.md), and the canonical [backup and restore](docs/BACKUP_AND_RESTORE.md) procedures for MariaDB and PostgreSQL.
+- Commerce and platform: [reconciliation](docs/COMMERCE_RECONCILIATION.md), [MariaDB compatibility](docs/MARIADB.md), and [security policy](SECURITY.md).
+
+Completed phase reports and superseded audits are not active operating documentation. They are retained in the owner-managed external archive, outside the repository, with a SHA-256 manifest and their original filenames. Restore historical reports only for review; do not copy them back into the project root.

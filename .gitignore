@@ -23,20 +23,9 @@ yarn-error.log
 /test-results
 /database/e2e.sqlite
 /artifacts
-/LOGO/
-/Projecten/
-/7 photos/
-/mix/
-
-# Local duplicate trees and generated release output.
-/Projecten - kopie/
-/public - kopie/
+# Generated release output.
 /raoza-build/
 /raoza-build - kopie/
-/resources - kopie/
-/routes - kopie/
-/scripts - kopie/
-/storage - kopie/
 /*.zip
 
 /storage/framework/views/*

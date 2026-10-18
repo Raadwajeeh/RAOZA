@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import {useState} from 'react';
 import {Head, Link, router, usePage} from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 

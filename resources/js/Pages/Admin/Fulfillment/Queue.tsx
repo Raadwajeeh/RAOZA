@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import {useState} from 'react';
 import {Form,Head,Link,router,usePage} from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 type Item={name:string;sku:string;quantity:number;options?:Record<string,string>};
