@@ -184,7 +184,7 @@ Deploy a reviewed immutable commit and retain the previous release. CI or stagin
 
 ## Catalog image delivery
 
-Official catalog PNG sources are preserved as source/fallback assets. `npm run images:optimize` reproducibly creates full, 960px and 640px WebP derivatives. Storefront catalog components provide responsive `srcset`, intrinsic dimensions, lazy loading below the fold, and eager/high priority for LCP imagery. Admin uploads continue to accept JPG, PNG and WebP without assuming static derivatives.
+Official catalog media is shipped as reviewed WebP only: one full-size image plus 960px and 640px responsive derivatives. The storefront provides `srcset`, intrinsic dimensions, lazy loading below the fold, and eager/high priority for LCP imagery. Lossless working sources belong outside the deployable repository; never generate derivatives by repeatedly recompressing the reviewed WebP files. Admin uploads continue to accept JPG, PNG and WebP without assuming static derivatives.
 
 Production logs should go to captured stderr or rotated daily files. Financial logs use internal IDs, order numbers where useful, provider IDs and exception classes—never credentials, authorization headers, cookies, addresses or raw customer/provider payloads. Failed jobs emit sanitized job/queue context and are stored in `failed_jobs`.
 
